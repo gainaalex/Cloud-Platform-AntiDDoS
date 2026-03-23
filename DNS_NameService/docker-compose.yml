@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  redis_db:
+    image: redis:latest
+    container_name: dns_redis_db
+    ports:
+      - "6379:6379"
+    restart: always
+
+  ns_app:
+    build: .
+    container_name: dns_ns_python
+    depends_on:
+      - redis_db
+    environment:
+      - REDIS_HOST=redis_db
+      - REDIS_PORT=6379
+      - NS_NAME=NS-Principal
+      - IP_BIND=0.0.0.0
+      - PORT_BIND=5334
+    ports:
+      - "5334:5334/udp"
+    restart: always

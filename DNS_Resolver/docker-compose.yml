@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  resolver_app:
+    build: .
+    container_name: dns_resolver_NO_1
+    env_file:
+      - .env
+    ports:
+      - "5333:5333/udp"
+    restart: always

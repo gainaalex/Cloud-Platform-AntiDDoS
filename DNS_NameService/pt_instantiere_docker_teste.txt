@@ -1,0 +1,15 @@
+docker run --name dns_ns_licenta -p 127.0.0.1:6379:6379 -d redis
+
+
+docker compose build
+docker compose up --build -d
+docker compose up
+docker compose down
+docker compose down -v
+
+docker logs -f dns_ns_python
+
+
+
+
+dig @127.0.0.1 -p 5334 edu.tuiasi.ro.
