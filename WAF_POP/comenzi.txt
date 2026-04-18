@@ -1,0 +1,23 @@
+in mini_waf
+
+python3 mini_waf.py 8081 sau 8082
+
+pt a testa ca cererea e trimisa catre mai waf ere diferite:
+http://127.0.0.1:8080/
+
+
+exemplu de cerere invalida:
+http://127.0.0.1:8080/search?id=' UNION SELECT NULL--
+
+
+verificare user-agent invalid:
+curl -H "User-Agent: ' UNION SELECT NULL--" http://127.0.0.1:8080
+
+
+docker-compose up --scale waf_node=3 --build
+
+#pt a vedea containerele
+docker ps
+docker logs -f ~nume_container~
+
+docker-compose config

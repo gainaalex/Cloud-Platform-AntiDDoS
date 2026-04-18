@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:alpine
+    container_name: ddos_redis
+    networks:
+      - ddos_net
+
+  pop_lb:
+    build: .
+    container_name: ddos_pop
+    command: python main.py
+    ports:
+      - "8080:8080"
+    environment:
+      - REDIS_HOST=redis
+    depends_on:
+      - redis
+    networks:
+      - ddos_net
+
+  waf_node:
+    build: .
+    command: python waf.py 8000
+    restart: always
+    environment:
+      - REDIS_HOST=redis
+    depends_on:
+      - redis
+    networks:
+      - ddos_net
+
+networks:
+  ddos_net:
+    driver: bridge
