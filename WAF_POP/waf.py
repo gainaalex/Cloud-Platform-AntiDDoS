@@ -19,13 +19,32 @@ ATTACK_SIGNATURES = {
     "SQL_INJECTION": re.compile(
         r"(?i)(union.*select|insert.*into|drop\s+table|waitfor\s+delay|sleep\s*\(|information_schema|' OR \d+=\d+|' OR '[a-z]'='[a-z]|--$)"),
     "XSS": re.compile(r"(?i)(<script>|javascript:|onerror=)"),
-    "PATH_TRAVERSAL": re.compile(r"(?i)(\.\./|\.\.\\|/etc/passwd)")
+    "PATH_TRAVERSAL": re.compile(r"(?i)(\.\./|\.\.\\|/etc/passwd|\x00)"),#din RFC 3986 sectiunea 7
+    "RESERVED_NAMES": re.compile(r"(?i)\b(AUX|PRN|CON|LPT[1-9]|COM[1-9])\b"),#din RFC 3986 sectiunea 7
+    "SENSITIVE_PORT_ACCESS": re.compile(r":([0-9]{1,3}|102[0-3])($|/|\?)"),#din RFC 3986 sectiunea 7,
+    "KNOWN_SCANNER": re.compile(r"(?i)(sqlmap|nikto|wpscan|dirbuster|nmap|zgrab|masscan|python-requests|go-http-client)")#CWE-20
 }
+
+def client_is_rate_limited(client_ip,r_conn):
+    key=f"rate_limit:{client_ip}"
+    try:
+        current_request=r_conn.incr(key)
+
+        if current_request == 1:
+            r_conn.expire(key, 1)
+
+        if current_request > 50:
+            return True
+    except Exception as e:
+        print(f"[*E] Redis RateLimit Err: {e}")
+    return False
 
 
 def analyze_request(path, headers, body=""):
-    # normalizam URL-ul
+    # normalizam=decodarea din percent-encode URL-ul
     # vezi rfc 3986
+
+    #print(f"!!!!!path: {path}",flush=True)
     decoded_path = urllib.parse.unquote(path)
     decoded_body = urllib.parse.unquote(body)
 
@@ -35,8 +54,11 @@ def analyze_request(path, headers, body=""):
         if pattern.search(full_payload):
             return False, attack_type
 
-    # 3. Verificam Headerele (ex: un User-Agent falsificat sau malitios) #vezi rfc 3986
+    # verif user-agent header #vezi rfc 3986 si rfc 9110
     user_agent = headers.get('User-Agent', '')
+    if not user_agent:#AICI E DE INTREBAT, STANDARDUL ZICE CA USER SHOULD SEND THIS (RFC 9110 S10.1.5)
+        return False, "MISSING_USER_AGENT"
+    print(f"User-agent:{user_agent}", flush=True)
     for attack_type, pattern in ATTACK_SIGNATURES.items():
         if pattern.search(user_agent):
             return False, f"{attack_type} (in User-Agent)"
@@ -46,7 +68,21 @@ def analyze_request(path, headers, body=""):
 
 class WAFNodeHandler(http.server.BaseHTTPRequestHandler):
     def handle_waf_logic(self, method, body=""):
-        client_ip = self.client_address[0]
+        xff = self.headers.get('X-Forwarded-For')
+        client_ip = xff.split(',')[-1].strip() if xff else self.client_address[0]
+
+        print(f"{self.headers.get('Host', 'localhost')}")
+
+        r_conex = redis.Redis(host=REDIS_HOST, port=6379, decode_responses=True)
+
+        if client_is_rate_limited(client_ip, r_conex):
+            print(f"[*W] [RATE-LIMIT] IP {client_ip} blocat (Flood detected)")
+            self.send_response(429)
+            self.send_header('Content-type', 'text/html')
+            #self.send_header('Retry-After', '1')
+            self.end_headers()
+            self.wfile.write(b"<h1>429 Too Many Requests</h1><p>DDoS protection detected suspicios number of requests from you</p>")
+            return
 
         is_safe, threat_type = analyze_request(self.path, self.headers, body)
 

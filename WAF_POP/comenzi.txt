@@ -11,7 +11,9 @@ http://127.0.0.1:8080/search?id=' UNION SELECT NULL--
 
 
 verificare user-agent invalid:
-curl -H "User-Agent: ' UNION SELECT NULL--" http://127.0.0.1:8080
+-i pt headere raspunsului
+curl -i -H "User-Agent: ' UNION SELECT NULL--" http://127.0.0.1:8080
+curl -i -A "sqlmap/1.5 (blabla/DROP)" "http://127.0.0.1:8080/"
 
 
 docker-compose up --scale waf_node=3 --build

@@ -63,6 +63,8 @@ class LoadBalancerCore:
 
                 self.active_endpoints = new_list
 
+            print(f"active endpoints: {self.active_endpoints}",flush=True)
+
             time.sleep(5)
 
     def get_next_endpoint(self):
@@ -88,7 +90,7 @@ class ProxyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         self.handle_request("POST")
 
     def handle_request(self, method):
-        client_ip = self.client_address[0]
+        client_ip = self.client_address[0]#ip client
 
         target_endpoint = lb_core.get_next_endpoint()
         print("\n--------------------new transaction-----------------------------------\n")
@@ -104,7 +106,11 @@ class ProxyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             req = urllib.request.Request(target_url, method=method)
 
             for key, value in self.headers.items():
+                if key.lower() == "host":
+                    continue
                 req.add_header(key, value)
+
+            req.add_header('X-Forwarded-For', client_ip)
 
             with urllib.request.urlopen(req, timeout=5) as response:
                 response_body = response.read()
