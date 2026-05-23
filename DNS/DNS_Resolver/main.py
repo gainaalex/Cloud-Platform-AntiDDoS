@@ -2,6 +2,7 @@ import os
 import socket
 import json
 import redis
+import random
 from dnslib import DNSRecord, QTYPE, RR, A, RCODE
 from dotenv import load_dotenv
 import socketserver
@@ -10,12 +11,12 @@ import socketserver
 
 load_dotenv()
 
-#Parametrii DNS flood prevention
+# Parametrii DNS flood prevention
 DNS_FLOOD_WINDOW = int(os.getenv('DNS_FLOOD_WINDOW', 1))
 DNS_FLOOD_MAX_REQS = int(os.getenv('DNS_FLOOD_MAX_REQS', 80))
 DNS_BAN_TIMEOUT = int(os.getenv('DNS_BAN_TIMEOUT', 120))
 
-
+NXDOMAIN_CACHE_TTL = int(os.getenv('NXDOMAIN_CACHE_TTL', 300))
 
 RESOLVER_NAME = os.getenv('RESOLVER_NAME', 'DNS_Resolver_Nx')
 IP_BIND = os.getenv('IP_BIND', '0.0.0.0')
@@ -29,8 +30,11 @@ REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
 
 # Conexiunea la cache-ul resolverului
 db = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+# in redis, informatiile de tip A despre domeniul x sunt stocate A:x
+#                           tip NS sunt stocate: NS:x
+#                           tip CNAME sunt stocate: CNAME:x
 
-#!!! Rezolvam dinamic ip-ul containerului ROOT in Docker (daca e configurat asa in env)
+
 ROOT_HOSTNAME = os.getenv('ROOT_HOSTNAME', 'dns_root')
 try:
     ROOT_IPS = socket.gethostbyname(ROOT_HOSTNAME)
@@ -39,30 +43,32 @@ except Exception:
 
 SBelt = {"root": {"ips": [ROOT_IPS]}}
 
-#aici verificam si aplicam load balancing pe lista de ip de tip A, nu CNAME/NS etc, asta ar fi ultimul pas
+
+
+
+# aici verificam si aplicam load balancing pe lista de ip de tip A, nu CNAME/NS etc
 def aplica_load_balancing(qname):
     # load balancing folosit pentru ditribuirea cererilor intre POP returnate de Name Server
     # extrage ttl ul curent ramas in redis pentru a nu il reseta cand salvam rotirea
-    ttl_ramas = db.ttl(qname)
+
+
+    cache_key = f"A:{qname.lower()}"
+    ttl_ramas = db.ttl(cache_key)
 
     if ttl_ramas <= 0:
         return None, 0
 
-    record_json = db.get(qname)
+    record_json = db.get(cache_key)
     if record_json:
         record = json.loads(record_json)
         if record.get('type') == 'A':
             pool = record.get('ips', [])
             if pool and len(pool) > 0:
-                # rotire circulara (round robin)
-                ip = pool.pop(0)
-                pool.append(ip)
-
-                # salvam ordinea modificata in redis, pastrand timpul de expirare ramas
-                db.set(qname, json.dumps({'type': 'A', 'ips': pool}), ex=ttl_ramas)
+                rotatie = random.randint(0, len(pool) - 1)
+                pool_rotit = pool[rotatie:] + pool[:rotatie]
 
                 # returnam lista rotita si ttl ul pe care trebuie sa il dam clientului
-                return list(pool), ttl_ramas
+                return pool_rotit, ttl_ramas
 
     return None, 0
 
@@ -70,19 +76,23 @@ def aplica_load_balancing(qname):
 def get_nearest_ancestor(qname):
     root_ip = SBelt["root"]["ips"][0]
 
+    qname = qname.lower()
+
     # verific daca un ancestor a mai fost cautat si s-a primit o referinta a unui NS
     labels = [l for l in qname.split('.') if l]
     search_names = [".".join(labels[i:]) + "." for i in range(len(labels))]
     search_names.append(".")
 
     for name in search_names:
-        record_json = db.get(name)
+        cache_key = f"NS:{name}" # cautam NS urile asociate
+        record_json = db.get(cache_key)
         if record_json:
             record = json.loads(record_json)
             if record.get('type') == 'NS':
                 print(f"[I]: ~CACHE NS HIT~ {RESOLVER_NAME} a gasit nearest ancestor pt {qname} -> {name}")
-                returned_list=list(record.get('ips', []))
-                returned_list.append(root_ip)#pentru orice eventualitate, cname uri care nu au primit si o lista de adrese efective, etc. Punem si adresa root ului
+                returned_list = list(record.get('ips', []))
+                returned_list.append(
+                    root_ip)  # pentru orice eventualitate, cname uri care nu au primit si o lista de adrese efective, etc. Punem si adresa root ului
                 return returned_list
 
     print(f"[I]: {RESOLVER_NAME} Nu a gasit delegari. Getting data from SBelt (Root):")
@@ -90,30 +100,21 @@ def get_nearest_ancestor(qname):
 
 
 def interogare_iterativa(qname):
+    nume_cautat = qname.lower()
+
+
+    if db.get(f"NXDOMAIN:{nume_cautat}"):
+        print(f"[I]: ~CACHE HIT~ {RESOLVER_NAME}: NXDOMAIN din cache pt {qname}")
+        return None, 0
+
     # Case 1: Verific cache intern in Redis pt a verfica existenta adresei cerute
-    #!!! Mecanismul de urmarire recursiva a aliasurilor direct din cache inainte de a iesi pe retea
-    nume_cautat = qname
-    max_cname_chain = 5 #pt a preveni loopwhole urile
-    cname_hops = 0
-    while cname_hops < max_cname_chain:
-         pool_cname, ttl_cname = aplica_load_balancing(nume_cautat)
-         if pool_cname:
-             print(f"[I]: ~CACHE HIT~ {RESOLVER_NAME}: HIT din resolver cache pt {qname}")
-             return pool_cname, ttl_cname #asta e cazul in care da hit din prima (a gasit efectiv adresa, fara cname) sau daca pe parcurs, de la a 2 a iteratie in colo cauta cname uri
-         rec_cname_json = db.get(nume_cautat)
-         if rec_cname_json:
-             rec_cn = json.loads(rec_cname_json)
-             if rec_cn.get('type') == 'CNAME':
-                 nume_cautat = rec_cn.get('alias')
-                 cname_hops += 1
-                 continue
-         break
+    pool_a, ttl_a = aplica_load_balancing(nume_cautat)
+    if pool_a:
+        print(f"[I]: ~CACHE HIT~ {RESOLVER_NAME}: HIT din resolver cache pt {qname}")
+        return pool_a, ttl_a
 
-    # P2: Creez SLIST cu rute ce ma pot duce la adresa ceruta
-    #!!! Cautam nearest ancestor direct pentru aliasul la care a avansat rezolvarea din cache
-
-    #cautam prin cache dupa NS uri prin parsarea domeniului (ex: edu.tuiasi.ro. -> cautam tuiasi.ro. , ro. si daca nu stim mergem la root)
-    SLIST = get_nearest_ancestor(nume_cautat) #facem cautarea pe alias pentru a salva timp in parcurgerea arborelui(am fi ajuns sa cautam tot dupa acest alias si daca as fi ales qname, dar cu extra steps)
+    # Case 2 - Cache miss: Creez SLIST cu rute ce ma pot duce la adresa ceruta
+    SLIST = get_nearest_ancestor(nume_cautat)
 
     MAX_HOPS = 10
     hops = 0
@@ -127,21 +128,15 @@ def interogare_iterativa(qname):
 
         try:
             cerere = DNSRecord.question(qname)
-            #!!! Daca rulam pe un alias aflat din cache, intrebam reteaua direct despre el
-            if nume_cautat != qname:
-                cerere = DNSRecord.question(nume_cautat) #default qtype="A", qclass="IN"
-
             pachet_raspuns = cerere.send(target_ip, 53, timeout=2.0)
             raspuns = DNSRecord.parse(pachet_raspuns)
 
             # CASE 1: Raspuns autoritar (<=> AA=1)
             if getattr(raspuns.header, 'aa') == 1:
-                # !!! parsarea pachetelor mixte (contin inregistrari CNAME | A)
                 un_ip_salvat = False
-                un_cname_salvat = False
                 ttlMin = raspuns.rr[0].ttl if raspuns.rr else None  # cautam sa vedem daca nu cumva aceasta adresa e una sensitive si care are ttl f mic, prea mic pt a mai avea sens sa o stocam
 
-                # !!! Cazul TTL mic: (TTL <= 1), trimitem direct datele fara sa mai accesam BD
+                # Cazul cand e ttl mic (<=1): trimitem direct datele fara sa mai accesam BD
                 if ttlMin is not None and ttlMin <= 1:
                     ip_imediate = [str(rr.rdata) for rr in raspuns.rr if rr.rtype == QTYPE.A]
                     if ip_imediate:
@@ -149,64 +144,63 @@ def interogare_iterativa(qname):
                         return ip_imediate, ttlMin
                     else:
                         print(f"[I]: [FAIL] Received uncacheable volatile answer with no A records (posibil NXDOMAIN)")
+                        db.set(f"NXDOMAIN:{nume_cautat}", 1, ex=NXDOMAIN_CACHE_TTL)
                         return None, 0
 
-                # !!! Cazul normal: Procesam si stocam in Redis inregistrarile cu TTL stabil (> 1)
+                # !!! cazul basic: stocam in bd datele cu ttl mai mare de 1
+                adrese_colectate = []
+                nume_domeniu=None
                 for rr in raspuns.rr:
-                    nume_real = str(rr.rname)
                     if rr.rtype == QTYPE.A:
                         ip_num = str(rr.rdata)
-                        pool_ex = []
-                        rec_vechi = db.get(nume_real)
-                        if rec_vechi:
-                            data_v = json.loads(rec_vechi)
-                            if data_v.get('type') == 'A':
-                                pool_ex = data_v.get('ips', [])
-                        if ip_num not in pool_ex:
-                            pool_ex.append(ip_num)
-                        db.set(nume_real, json.dumps({'type': 'A', 'ips': pool_ex}), ex=rr.ttl)
-                        un_ip_salvat = True
-                    elif rr.rtype == QTYPE.CNAME:
-                        db.set(nume_real, json.dumps({'type': 'CNAME', 'alias': str(rr.rdata)}), ex=rr.ttl)
-                        un_cname_salvat = True
+                        if nume_domeniu is None:
+                            nume_domeniu = str(rr.rname.lower())
+                        if ip_num not in adrese_colectate:
+                            adrese_colectate.append(ip_num)
 
-                if un_ip_salvat or un_cname_salvat:
-                    return interogare_iterativa(
-                        qname)  # recautand dupa qname acoperim cazul unde alisul expira (ex edu.tuiasi.ro. in cname vatafu.cloud.net) iar cautarea adresei vatafu.cloud.net se termina dupa expirare
+                cache_key_a = f"A:{nume_domeniu}"
 
-                # !!! Daca am trecut de tot si nu s-a salvat nimic, inseamna ca sectiunea Answer a fost goala sau fara inregistrari web utile
+                if nume_domeniu: #practic daca nu mai e null inseamna ca e cel putin o inregistare
+                    db.set(cache_key_a, json.dumps({'type': 'A', 'ips': adrese_colectate}), ex=ttlMin)
+                    un_ip_salvat = True
+
+                if un_ip_salvat:
+                    return aplica_load_balancing(qname)
+
+                # daca am ajuns aici inseamna ca e NXDOMAIN
                 print(f"[I]: [FAIL] Received authoritar answer : no adresses (posibil NXDOMAIN)")
+
+                db.set(f"NXDOMAIN:{nume_cautat}", 1, ex=NXDOMAIN_CACHE_TTL)
                 return None, 0
 
             # CASE 2: Referral
             elif len(raspuns.auth) > 0:
                 new_slist = []
-                ns_names = [str(rr.rdata) for rr in raspuns.auth if rr.rtype == QTYPE.NS]
+                ns_names = [str(rr.rdata).lower() for rr in raspuns.auth if rr.rtype == QTYPE.NS]
                 if not ns_names:
                     SLIST.pop(0)
                     continue
 
-                zona_delegata = str(raspuns.auth[0].rname)
+                zona_delegata = str(raspuns.auth[0].rname).lower()
 
                 # Looking for Glue Records
                 for ns in ns_names:
                     for ar in raspuns.ar:
-                        if str(ar.rname) == ns and ar.rtype == QTYPE.A:
-                            #port_de_folosit = 5334 if str(ar.rdata) == NS_TARGET_IP else 5333
+                        if str(ar.rname).lower() == ns and ar.rtype == QTYPE.A:
                             new_slist.append(str(ar.rdata))
 
                 if new_slist:
                     SLIST = new_slist
-                    # Extragem TTL ul delegarii (din Authority section)
+
                     ttl_delegare = raspuns.auth[0].ttl if raspuns.auth else 300
 
                     # Stocam delegarea in Redis cu TTL ul aferent
-                    db.set(zona_delegata, json.dumps({'type': 'NS', 'ips': new_slist}), ex=ttl_delegare)
+                    db.set(f"NS:{zona_delegata}", json.dumps({'type': 'NS', 'ips': new_slist}), ex=ttl_delegare)
 
-                    print(
-                        f"[I]: REFFERAL Delegat catre {zona_delegata} (TTL: {ttl_delegare}s). SLIST actualizat. Reiau bucla")
+                    print(f"[I]: REFFERAL Delegat catre {zona_delegata} (TTL: {ttl_delegare}s). SLIST actualizat. Reiau bucla")
                     continue
                 else:
+                    ###!!! Deoarece arhitectura e controlata, ne asteptam la Glue Records. Daca nu vin, ruta e corupta si sarim.
                     print(f"[E]: Referral fara Glue Records. Trec la urmatorul NS")
                     SLIST.pop(0)
                     continue
@@ -228,27 +222,35 @@ class ThreadedUDPRequestHandler(socketserver.BaseRequestHandler):
         data = self.request[0]
         socket_curent = self.request[1]
         client_addr = self.client_address
-        client_ip=client_addr[0]
+        client_ip = client_addr[0]
 
         try:
-            #DNS Flood prevention logic
+
             if (db.get(f"ban:{client_ip}")):
                 print(f"[I]: [DDOS PREVENTION] IP: {client_ip} banned")
                 return
 
-            client_req_id=f"req:{client_ip}"
-            nr_cereri_client=db.incr(client_req_id)
+            client_req_id = f"req:{client_ip}"
 
-            if nr_cereri_client==1:
+            #cu pipeline pt a unii cererile atomice , pt a eficientiza timpul petrecut accesand bd ul
+            pipe = db.pipeline()
+            pipe.incr(client_req_id)#nr_cereri_client
+            pipe.ttl(client_req_id)#ttl_curent
+            rezultate_pipe = pipe.execute()
+
+            nr_cereri_client = rezultate_pipe[0]#
+            ttl_curent = rezultate_pipe[1]
+
+            if nr_cereri_client == 1 or ttl_curent == -1: #ttl -1 inseamna ca nu are ttl | ttl =-2 inseamna ca cheia nu exista
                 db.expire(client_req_id, DNS_FLOOD_WINDOW)
 
-            if nr_cereri_client>DNS_FLOOD_MAX_REQS:
+            if nr_cereri_client > DNS_FLOOD_MAX_REQS:
                 print(f"[I]: [DDOS DETECTED] IP:{client_ip} banned for sending {nr_cereri_client} requests per {DNS_FLOOD_WINDOW} seconds.")
-                db.set(f"ban:{client_ip}", 1,ex=DNS_BAN_TIMEOUT)
+                db.set(f"ban:{client_ip}", 1, ex=DNS_BAN_TIMEOUT)
                 db.delete(client_req_id)
                 return
 
-            #dns resolver logic
+            # dns resolver logic
             request = DNSRecord.parse(data)
             qname = str(request.q.qname)
             print(f"\n==============================================")
