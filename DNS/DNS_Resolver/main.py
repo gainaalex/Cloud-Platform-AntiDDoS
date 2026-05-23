@@ -86,10 +86,11 @@ def get_nearest_ancestor(qname):
     for name in search_names:
         cache_key = f"NS:{name}" # cautam NS urile asociate
         record_json = db.get(cache_key)
+        record_ttl=db.ttl(cache_key)
         if record_json:
             record = json.loads(record_json)
             if record.get('type') == 'NS':
-                print(f"[I]: ~CACHE NS HIT~ {RESOLVER_NAME} a gasit nearest ancestor pt {qname} -> {name}")
+                print(f"[I]: ~CACHE NS HIT~ {RESOLVER_NAME} a gasit nearest ancestor pt {qname} -> {name} (TTL: {record_ttl})")
                 returned_list = list(record.get('ips', []))
                 returned_list.append(
                     root_ip)  # pentru orice eventualitate, cname uri care nu au primit si o lista de adrese efective, etc. Punem si adresa root ului
@@ -154,7 +155,7 @@ def interogare_iterativa(qname):
                     if rr.rtype == QTYPE.A:
                         ip_num = str(rr.rdata)
                         if nume_domeniu is None:
-                            nume_domeniu = str(rr.rname.lower())
+                            nume_domeniu = str(rr.rname).lower()
                         if ip_num not in adrese_colectate:
                             adrese_colectate.append(ip_num)
 
@@ -197,7 +198,7 @@ def interogare_iterativa(qname):
                     # Stocam delegarea in Redis cu TTL ul aferent
                     db.set(f"NS:{zona_delegata}", json.dumps({'type': 'NS', 'ips': new_slist}), ex=ttl_delegare)
 
-                    print(f"[I]: REFFERAL Delegat catre {zona_delegata} (TTL: {ttl_delegare}s). SLIST actualizat. Reiau bucla")
+                    print(f"[I]: REFFERAL Delegat catre {zona_delegata} (TTL: {ttl_delegare}s). SLIST actualizat. Reiterez...")
                     continue
                 else:
                     ###!!! Deoarece arhitectura e controlata, ne asteptam la Glue Records. Daca nu vin, ruta e corupta si sarim.

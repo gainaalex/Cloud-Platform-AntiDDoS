@@ -10,6 +10,6 @@ docker compose down -v
 docker logs -f dns_ns_python
 
 
-
+docker compose logs -f resolver_app
 
 dig @127.0.0.1 -p 5334 edu.tuiasi.ro.

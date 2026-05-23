@@ -1,0 +1,6 @@
+dig @127.0.0.1 -p 5333 api.mycloud.ro
+
+dig @127.0.0.1 -p 5333 vatafu.ro
+dig @127.0.0.1 -p 5333 edu.tuiasi.ro
+dig @127.0.0.1 -p 5333 emag.ro
+

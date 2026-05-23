@@ -5,45 +5,92 @@ networks:
     driver: bridge
 
 services:
-  redis_db:
+  redis_root:
     image: redis:latest
-    container_name: dns_redis_db
-    ports:
-      - "6379:6379"
+    container_name: redis_root
     networks:
       - dns_network
-    restart: always
 
-  ns_app:
-    build: DNS_ROOT_NS
-    container_name: dns_ns_python
+  ns_root:
+    build: ./DNS_Nameserver
+    container_name: ns_root
     depends_on:
-      - redis_db
+      - redis_root
     environment:
-      - REDIS_HOST=redis_db
+      - REDIS_HOST=redis_root
       - REDIS_PORT=6379
-      - NS_NAME=NS-Principal
+      - NS_NAME=ROOT_SERVER
+      - NS_ROLE=ROOT
       - IP_BIND=0.0.0.0
-      - PORT_BIND=5334
-    ports:
-      - "5334:5334/udp"
+      - PORT_BIND=53
+      - ROTLD_HOSTNAME=ns_rotld
     networks:
       - dns_network
-    restart: always
+
+  redis_rotld:
+    image: redis:latest
+    container_name: redis_rotld
+    networks:
+      - dns_network
+
+  ns_rotld:
+    build: ./DNS_Nameserver
+    container_name: ns_rotld
+    depends_on:
+      - redis_rotld
+    environment:
+      - REDIS_HOST=redis_rotld
+      - REDIS_PORT=6379
+      - NS_NAME=ROTLD_SERVER
+      - NS_ROLE=ROTLD
+      - IP_BIND=0.0.0.0
+      - PORT_BIND=53
+      - MYCLOUD_HOSTNAME=ns_mycloud
+    networks:
+      - dns_network
+
+  redis_mycloud:
+    image: redis:latest
+    container_name: redis_mycloud
+    networks:
+      - dns_network
+
+  ns_mycloud:
+    build: ./DNS_Nameserver
+    container_name: ns_mycloud
+    depends_on:
+      - redis_mycloud
+    environment:
+      - REDIS_HOST=redis_mycloud
+      - REDIS_PORT=6379
+      - NS_NAME=MYCLOUD_AUTH
+      - NS_ROLE=MYCLOUD
+      - IP_BIND=0.0.0.0
+      - PORT_BIND=53
+    networks:
+      - dns_network
+
+  redis_resolver:
+    image: redis:latest
+    container_name: redis_resolver
+    networks:
+      - dns_network
 
   resolver_app:
     build: ./DNS_Resolver
     container_name: dns_resolver_NO_1
     depends_on:
-      - ns_app
+      - ns_root
+      - redis_resolver
     environment:
       - RESOLVER_NAME=DNS_Resolver_N1
       - IP_BIND=0.0.0.0
       - PORT_BIND=5333
-      - NS_TARGET_IP=ns_app
-      - NS_TARGET_PORT=5334
+      - ROOT_HOSTNAME=ns_root
+      - NS_TARGET_PORT=53  # Resolverul stie ca in Docker, Root asculta pe portul 53
+      - REDIS_HOST=redis_resolver
+      - REDIS_PORT=6379
     ports:
-      - "5333:5333/udp"
+      - "5333:5333/udp"  # !!! Singurul port expus pe PC-ul tau! Pe acesta il verifici
     networks:
       - dns_network
-    restart: always
