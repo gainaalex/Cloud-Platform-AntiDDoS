@@ -1,4 +1,5 @@
 import os
+import random
 import socket
 import json
 import redis
@@ -27,6 +28,7 @@ def porneste_server_ns():
 
     while True:
         try:
+            #conform rfc1035 max 512 bytes per cerere
             data, addr = sock.recvfrom(512)
             request = DNSRecord.parse(data)
             qname = str(request.q.qname)
@@ -36,20 +38,26 @@ def porneste_server_ns():
 
             reply = request.reply()
             reply.header.aa = 1
-
+            #name space ul are implementata doar logica necesara pentru a raspunde la cererile de IPv4 , nu IPv6/MX
             if qtype == QTYPE.A:
                 record_json = db.get(qname)
 
                 if record_json:
                     record = json.loads(record_json)
-                    reply.add_answer(RR(
-                        rname=qname,
-                        rtype=QTYPE.A,
-                        rclass=1,
-                        ttl=record['ttl'],
-                        rdata=A(record['ip'])
-                    ))
-                    print(f"[I:]{NS_NAME} -> RSP delivered for {addr}: {record['ip']}")
+                    ips_list=record['ips']
+                    r_type=record['type']
+                    if len(ips_list)>1:
+                        random.shuffle(ips_list)
+
+                    for ip in ips_list:
+                        reply.add_answer(RR(
+                            rname=qname,
+                            rtype=r_type,
+                            rclass=1,
+                            ttl=record['ttl'],
+                            rdata=A(ip)
+                        ))
+                    print(f"[I:]{NS_NAME} -> RSP delivered for {addr} -> {ips_list}")
                 else:
                     reply.header.rcode = getattr(RCODE, 'NXDOMAIN')
                     print(f"[E:]{NS_NAME} -> {qname} is NXDOMAIN")

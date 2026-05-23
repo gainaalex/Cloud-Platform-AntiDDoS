@@ -8,4 +8,4 @@ RUN pip install -r requirements.txt
 
 EXPOSE 5333/udp
 
-CMD ["python","-u", "resolver_main.py"]
+CMD ["python","-u", "main.py"]

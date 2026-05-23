@@ -1,0 +1,49 @@
+version: '3.8'
+
+networks:
+  dns_network:
+    driver: bridge
+
+services:
+  redis_db:
+    image: redis:latest
+    container_name: dns_redis_db
+    ports:
+      - "6379:6379"
+    networks:
+      - dns_network
+    restart: always
+
+  ns_app:
+    build: DNS_ROOT_NS
+    container_name: dns_ns_python
+    depends_on:
+      - redis_db
+    environment:
+      - REDIS_HOST=redis_db
+      - REDIS_PORT=6379
+      - NS_NAME=NS-Principal
+      - IP_BIND=0.0.0.0
+      - PORT_BIND=5334
+    ports:
+      - "5334:5334/udp"
+    networks:
+      - dns_network
+    restart: always
+
+  resolver_app:
+    build: ./DNS_Resolver
+    container_name: dns_resolver_NO_1
+    depends_on:
+      - ns_app
+    environment:
+      - RESOLVER_NAME=DNS_Resolver_N1
+      - IP_BIND=0.0.0.0
+      - PORT_BIND=5333
+      - NS_TARGET_IP=ns_app
+      - NS_TARGET_PORT=5334
+    ports:
+      - "5333:5333/udp"
+    networks:
+      - dns_network
+    restart: always

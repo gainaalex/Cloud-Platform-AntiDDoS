@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  resolver_app:
+    build: .
+    container_name: dns_resolver_NO_1
+    environment:
+      - RESOLVER_NAME=DNS_Resolver_N1
+      - IP_BIND=0.0.0.0
+      - PORT_BIND=5333
+      - NS_TARGET_IP=172.17.0.1
+      - NS_TARGET_PORT=5334
+    ports:
+      - "5333:5333/udp"
+    restart: always
