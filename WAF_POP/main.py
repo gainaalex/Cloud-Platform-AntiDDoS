@@ -102,12 +102,19 @@ class ProxyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
         print(f"[I*][ON-RAMP] Trafic de la {client_ip} -> Rutat catre {target_endpoint} (Metoda: {method})")
 
+        body_data = None
+        if method == "POST":
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length > 0:
+                body_data = self.rfile.read(content_length)
+
+
         try:
-            req = urllib.request.Request(target_url, method=method)
+            req = urllib.request.Request(target_url,data=body_data, method=method)
 
             for key, value in self.headers.items():
-                if key.lower() == "host":
-                    continue
+                #if key.lower() == "host":
+                #    continue
                 req.add_header(key, value)
 
             req.add_header('X-Forwarded-For', client_ip)

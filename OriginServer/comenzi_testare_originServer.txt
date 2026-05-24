@@ -1,0 +1,28 @@
+#asa testez doar serverul origin, fara pop
+curl -v http://127.0.0.1:8081/static/image.jpg
+
+#testare server origin cu pop:
+
+#caz 1
+curl -v -H "Host: edu.tuiasi.ro" http://127.0.0.1:8080/static/image.jpg
+# prima data va da cdn miss, dupa hit
+
+#testare waf:
+curl -v -H "Host: edu.tuiasi.ro" "http://127.0.0.1:8080/static/image.jpg?query=<script>"
+
+#testare ddos:
+ruleaza test_flood.oy
+
+#caz 2:
+curl -i -H "Host: edu.tuiasi.ro" http://127.0.0.1:8080/api/data
+
+#caz 3 ala sensitive:
+curl -i -H "Host: edu.tuiasi.ro" http://127.0.0.1:8080/private/dashboard
+
+#caz 4
+curl -i -H "Host: edu.tuiasi.ro" http://127.0.0.1:8080/api/strict
+
+#caz 5:
+curl -i -H "Host: edu.tuiasi.ro" http://127.0.0.1:8080/api/data
+curl -i -X POST -H "Host: edu.tuiasi.ro" http://127.0.0.1:8080/api/data
+

@@ -1,0 +1,15 @@
+services:
+  edu_site:
+    build: .
+    container_name: origin_edu_server
+    environment:
+      - PORT=8080
+    networks:
+      mycloud_global_net:
+        ipv4_address: 172.20.0.12
+    ports:
+      - "8081:8080"
+
+networks:
+  mycloud_global_net:
+    external: true

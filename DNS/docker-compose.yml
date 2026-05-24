@@ -87,10 +87,10 @@ services:
       - IP_BIND=0.0.0.0
       - PORT_BIND=5333
       - ROOT_HOSTNAME=ns_root
-      - NS_TARGET_PORT=53  # Resolverul stie ca in Docker, Root asculta pe portul 53
+      - NS_TARGET_PORT=53
       - REDIS_HOST=redis_resolver
       - REDIS_PORT=6379
     ports:
-      - "5333:5333/udp"  # !!! Singurul port expus pe PC-ul tau! Pe acesta il verifici
+      - "5333:5333/udp"
     networks:
       - dns_network
