@@ -18,6 +18,7 @@ DNS_BAN_TIMEOUT = int(os.getenv('DNS_BAN_TIMEOUT', 120))
 
 NXDOMAIN_CACHE_TTL = int(os.getenv('NXDOMAIN_CACHE_TTL', 300))
 
+
 RESOLVER_NAME = os.getenv('RESOLVER_NAME', 'DNS_Resolver_Nx')
 IP_BIND = os.getenv('IP_BIND', '0.0.0.0')
 PORT_BIND = int(os.getenv('PORT_BIND', 5333))
@@ -239,7 +240,7 @@ class ThreadedUDPRequestHandler(socketserver.BaseRequestHandler):
             pipe.ttl(client_req_id)#ttl_curent
             rezultate_pipe = pipe.execute()
 
-            nr_cereri_client = rezultate_pipe[0]#
+            nr_cereri_client = rezultate_pipe[0]
             ttl_curent = rezultate_pipe[1]
 
             if nr_cereri_client == 1 or ttl_curent == -1: #ttl -1 inseamna ca nu are ttl | ttl =-2 inseamna ca cheia nu exista
@@ -254,8 +255,17 @@ class ThreadedUDPRequestHandler(socketserver.BaseRequestHandler):
             # dns resolver logic
             request = DNSRecord.parse(data)
             qname = str(request.q.qname)
+            qtype = request.q.qtype
             print(f"\n==============================================")
             print(f"[I:] [REQUEST] De la {client_addr} pt -> {qname}")
+
+            #PT DNS AMPLIFICATION
+            if qtype == 255:  # 255 este QTYPE.ANY
+                print(f"[W]: [DNS AMPLIFICATION DETECTED] Cerere ANY blocata de la {client_addr}. Trimitem REFUSED.")
+                reply = request.reply()
+                reply.header.rcode = getattr(RCODE, 'REFUSED')
+                socket_curent.sendto(reply.pack(), client_addr)
+                return
 
             # Interogarea intoarce acum atat lista de IP-uri cat si TTL-ul curent din Redis
             ips_rezolvate, ttl_curent = interogare_iterativa(qname)
@@ -269,6 +279,20 @@ class ThreadedUDPRequestHandler(socketserver.BaseRequestHandler):
             else:
                 reply.header.rcode = getattr(RCODE, 'NXDOMAIN')
                 print(f"[I]: [RESPONSE] Domeniul nu a fost gasit (NXDOMAIN).")
+
+            pachet_final = reply.pack()
+            size_req = len(data)
+            size_resp = len(pachet_final)
+
+            # PT DNS AMPLIFICATION
+            # daca raspunsul e mult mai mare decat cererea (Asimetrie de amplificare)
+            # si rata de cereri de la acest IP e suspecta, activam flag-ul TC (truncated)
+            if size_resp > (size_req * 5) and nr_cereri_client > (DNS_FLOOD_MAX_REQS / 2):
+                print(f"[W]: [DNS AMPLIFICATION DETECTED] Detectat raspuns asimetric ({size_resp} bytes). Trunchiem pachetul.")
+                reply_trunchiat = request.reply()
+                reply_trunchiat.header.tc = 1  #conform RFC 1035
+                socket_curent.sendto(reply_trunchiat.pack(), client_addr)
+                return
 
             socket_curent.sendto(reply.pack(), client_addr)
 

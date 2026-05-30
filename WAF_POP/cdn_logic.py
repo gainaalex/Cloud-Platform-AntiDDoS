@@ -132,6 +132,7 @@ class CDNManager:
         max_stale = max(cc['stale-while-revalidate'], cc['stale-if-error'])
         redis_hard_ttl = freshness_ttl + max_stale
 
+        #redis hash - un dictionar scocat intr o cheie
         self.r.hset(base_key, vary_sig, json.dumps(data_to_store))
         self.r.expire(base_key, redis_hard_ttl)
         print(f"[*I] [CDN] Salvat {base_key} [Vary: {vary_sig} | TTL: {freshness_ttl}s]")
