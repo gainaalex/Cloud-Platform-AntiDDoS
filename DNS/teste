@@ -4,3 +4,19 @@ dig @127.0.0.1 -p 5333 vatafu.ro
 dig @127.0.0.1 -p 5333 edu.tuiasi.ro
 dig @127.0.0.1 -p 5333 emag.ro
 
+
+#coduri pt teste:
+#aici arat cum initial va itera pana la root si va cobora in arbore pana la mycloud ns
+#si la rularile ulterioare, in f de timpul ttl dat de fiecare NS in log se va vedea cum da hit/ intreaba mycloud NS sau ROTLD
+dig @127.0.0.1 -p 5333 edu.tuiasi.ro. A
+
+#sa vad cum adresele returnate se rotesc (la mine am facut ca random sa fie rotite de un numar random de ori)
+dig @127.0.0.1 -p 5333 edu.tuiasi.ro. A +short
+
+#pt a testa Negative Caching
+dig @127.0.0.1 -p 5333 fake.edu.tuiasi.ro. A
+
+#pt a testa impotriva DNS Amplification (ANY e vulnerabil deci cererile de genul sunt blocate)
+dig @127.0.0.1 -p 5333 edu.tuiasi.ro. ANY
+
+

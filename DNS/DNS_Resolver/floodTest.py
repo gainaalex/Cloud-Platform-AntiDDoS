@@ -1,72 +1,147 @@
 import socket
 import time
 import threading
-from dnslib import DNSRecord
 
+import matplotlib
+import matplotlib.pyplot as plt
+
+matplotlib.use('TkAgg')
+from dnslib import DNSRecord
 
 RESOLVER_IP = "127.0.0.1"
 RESOLVER_PORT = 5333
 DOMENIU_TEST = "api.mycloud.ro"
 
+DURATA_ATAC_SECUNDE = 3.5
+RATA_CERERI_PE_SECUNDA = 300
 
-NUMAR_TOTAL_CERERI = 120
-THREADS_CONCURENTE = 10
+
+date_grafic = []
+lock_date = threading.Lock()
+timp_start_global = 0
+id_global_cerere = 0
 
 
 def trimite_cerere_dns(id_cerere):
-
     try:
         q = DNSRecord.question(DOMENIU_TEST)
         pachet = q.pack()
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.settimeout(1.0)
+        sock.settimeout(0.2)
 
-        timp_start = time.time()
+        # 1. Inregistram timpul EXACT cand pachetul pleaca spre server
+        timp_start_req = time.time()
+        timp_trimitere_relativ = timp_start_req - timp_start_global
+
         sock.sendto(pachet, (RESOLVER_IP, RESOLVER_PORT))
 
         data, _ = sock.recvfrom(512)
         raspuns = DNSRecord.parse(data)
+        rcode_name = getattr(raspuns.header, 'rcode', 'UNKNOWN')
 
-        rcode_name = raspuns.header.rcode
-        print(
-            f"[Cerere {id_cerere:03d}] -> Status: Succes (RCODE: {rcode_name}) | Timp: {(time.time() - timp_start) * 1000:.1f}ms")
+        with lock_date:
+            date_grafic.append((timp_trimitere_relativ, id_cerere, 'Succes'))
 
     except socket.timeout:
-        print(f"[Cerere {id_cerere:03d}] -> [*] TIMEOUT (Resolverul ne ignora pachetele -> BAN ACTIV!)")
+        with lock_date:
+            date_grafic.append((timp_trimitere_relativ, id_cerere, 'Blocat'))
     except Exception as e:
-        print(f"[Cerere {id_cerere:03d}] -> [Eroare]: {e}")
+        pass
     finally:
         sock.close()
 
 
+def genereaza_grafic():
+    print("[I:] Generez graficul atacului...")
+    if not date_grafic:
+        return
+
+    # Sortam datele cronologic
+    date_grafic.sort(key=lambda x: x[0])
+    timpi = [d[0] for d in date_grafic]
+
+    cumulativ_succes = []
+    cumulativ_blocat = []
+    c_s = 0
+    c_b = 0
+
+    momente_ban = []
+
+    stare_curenta = 'Succes'
+
+    for pachet in date_grafic:
+        timp_curent = pachet[0]
+        status = pachet[2]
+
+        if status == 'Succes':
+            c_s += 1
+
+            if stare_curenta == 'Blocat':
+                stare_curenta = 'Succes'
+        else:
+            c_b += 1
+            if stare_curenta == 'Succes':
+                momente_ban.append(timp_curent)
+                stare_curenta = 'Blocat'
+
+        cumulativ_succes.append(c_s)
+        cumulativ_blocat.append(c_b)
+
+    plt.figure(figsize=(10, 6))
+
+    label_verde = f'Trafic Permis ({c_s} cereri)'
+    label_rosu = f'Trafic Blocat ({c_b} cereri)'
+
+    plt.step(timpi, cumulativ_succes, color='#28a745', label=label_verde, linewidth=2.5, where='post')
+    plt.step(timpi, cumulativ_blocat, color='#dc3545', label=label_rosu, linewidth=2.5, where='post')
+
+    plt.fill_between(timpi, cumulativ_succes, color='#28a745', alpha=0.15, step='post')
+    plt.fill_between(timpi, cumulativ_blocat, color='#dc3545', alpha=0.15, step='post')
+
+    for i, t in enumerate(momente_ban):
+        lbl = 'Ban Activat (Detectie DDoS)' if i == 0 else ""
+        plt.axvline(x=t, color='#dc3545', linestyle='--', linewidth=1.5, alpha=0.8, label=lbl)
+
+    plt.title(f"Testare DNS Flood. Domeniu:{DOMENIU_TEST}. Ban time= 1s", fontsize=14, pad=15)
+    plt.xlabel('Timp (secunde)', fontsize=12)
+    plt.ylabel('Volumul cererilor', fontsize=12)
+    plt.legend(loc='upper left', fontsize=10)
+    plt.grid(True, linestyle=':', alpha=0.7)
+
+    plt.xlim(left=0)
+
+    max_y = max(max(cumulativ_succes) if cumulativ_succes else 0,
+                max(cumulativ_blocat) if cumulativ_blocat else 0)
+    plt.ylim(bottom=0, top=max_y + (max_y * 0.2))
+
+    plt.tight_layout()
+    plt.show()
+
+
 def porneste_atac_simulat():
+    global timp_start_global, id_global_cerere
     print("=" * 60)
-    print(f"[I:] Pornesc simularea de DNS Flood catre {RESOLVER_IP}:{RESOLVER_PORT}")
-    print(f"[I:] Trimit {NUMAR_TOTAL_CERERI} cereri folosind {THREADS_CONCURENTE} thread-uri paralele...")
-    print("=" * 60)
+    print(f"[I:] Pornesc flood sustinut timp de {DURATA_ATAC_SECUNDE} secunde...")
 
-    threads = []
-    timp_inceput_atac = time.time()
+    timp_start_global = time.time()
+    threads_active = []
 
-    # Distribuim cererile in mod concurent pe thread-uri
-    for i in range(NUMAR_TOTAL_CERERI):
-        t = threading.Thread(target=trimite_cerere_dns, args=(i + 1,))
-        threads.append(t)
-        t.start()
+    while (time.time() - timp_start_global) < DURATA_ATAC_SECUNDE:
+        for _ in range(int(RATA_CERERI_PE_SECUNDA / 10)):
+            id_global_cerere += 1
+            t = threading.Thread(target=trimite_cerere_dns, args=(id_global_cerere,))
+            threads_active.append(t)
+            t.start()
 
-        # Introducem o micro-pauza la pornirea thread-urilor ca sa nu blocam scheduler-ul local al OS-ului
-        if len(threads) % THREADS_CONCURENTE == 0:
-            time.sleep(0.02)
+        time.sleep(0.1)
 
-    # Asteptam ca toate thread-urile sa isi termine executia sau sa dea timeout
-    for t in threads:
+    print("[I:] Atacul s-a oprit. Astept inchiderea conexiunilor ramase...")
+    for t in threads_active:
         t.join()
 
-    durata_totala = time.time() - timp_inceput_atac
     print("=" * 60)
-    print(f"[I:] Atacul s-a terminat in {durata_totala:.2f} secunde.")
-    print("=" * 60)
+    genereaza_grafic()
 
 
 if __name__ == "__main__":

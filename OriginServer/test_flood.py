@@ -5,7 +5,7 @@ import time
 TARGET_URL = "http://127.0.0.1:8080/static/image.jpg"
 HEADERS = {
     "Host": "edu.tuiasi.ro",
-    #trebuie agent ca sa nu pice testul waf pt user-agent
+    #trebuie user-agent ca sa nu pice testul waf pt user-agent
     "User-Agent": "Python-Flood-Test/1.0"
 }
 NUM_REQUESTS = 100

@@ -1,3 +1,4 @@
 dnslib
 python-dotenv
 redis
+matplotlib

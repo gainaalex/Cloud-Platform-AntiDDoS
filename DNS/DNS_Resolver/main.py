@@ -93,8 +93,7 @@ def get_nearest_ancestor(qname):
             if record.get('type') == 'NS':
                 print(f"[I]: ~CACHE NS HIT~ {RESOLVER_NAME} a gasit nearest ancestor pt {qname} -> {name} (TTL: {record_ttl})")
                 returned_list = list(record.get('ips', []))
-                returned_list.append(
-                    root_ip)  # pentru orice eventualitate, cname uri care nu au primit si o lista de adrese efective, etc. Punem si adresa root ului
+                returned_list.append(root_ip)  # pentru orice eventualitate, cname uri care nu au primit si o lista de adrese efective, etc. Punem si adresa root ului
                 return returned_list
 
     print(f"[I]: {RESOLVER_NAME} Nu a gasit delegari. Getting data from SBelt (Root):")
@@ -196,13 +195,12 @@ def interogare_iterativa(qname):
 
                     ttl_delegare = raspuns.auth[0].ttl if raspuns.auth else 300
 
-                    # Stocam delegarea in Redis cu TTL ul aferent
+                    # stocam delegarea in BD cu TTL ul aferent
                     db.set(f"NS:{zona_delegata}", json.dumps({'type': 'NS', 'ips': new_slist}), ex=ttl_delegare)
 
                     print(f"[I]: REFFERAL Delegat catre {zona_delegata} (TTL: {ttl_delegare}s). SLIST actualizat. Reiterez...")
                     continue
                 else:
-                    ###!!! Deoarece arhitectura e controlata, ne asteptam la Glue Records. Daca nu vin, ruta e corupta si sarim.
                     print(f"[E]: Referral fara Glue Records. Trec la urmatorul NS")
                     SLIST.pop(0)
                     continue
@@ -267,12 +265,11 @@ class ThreadedUDPRequestHandler(socketserver.BaseRequestHandler):
                 socket_curent.sendto(reply.pack(), client_addr)
                 return
 
-            # Interogarea intoarce acum atat lista de IP-uri cat si TTL-ul curent din Redis
             ips_rezolvate, ttl_curent = interogare_iterativa(qname)
 
             reply = request.reply()
             if ips_rezolvate:
-                # Adaugam fiecare IP din lista in pachetul final cu TTL-ul real, nu hardcodat
+                # adaugam fiecare IP din lista in pachetul final cu ttl ul primit
                 for ip in ips_rezolvate:
                     reply.add_answer(RR(qname, QTYPE.A, rdata=A(ip), ttl=ttl_curent))
                 print(f"[I]: [RESPONSE] Trimit catre {client_addr} -> {ips_rezolvate} cu TTL {ttl_curent}s")
@@ -284,15 +281,19 @@ class ThreadedUDPRequestHandler(socketserver.BaseRequestHandler):
             size_req = len(data)
             size_resp = len(pachet_final)
 
-            # PT DNS AMPLIFICATION
-            # daca raspunsul e mult mai mare decat cererea (Asimetrie de amplificare)
-            # si rata de cereri de la acest IP e suspecta, activam flag-ul TC (truncated)
-            if size_resp > (size_req * 5) and nr_cereri_client > (DNS_FLOOD_MAX_REQS / 2):
-                print(f"[W]: [DNS AMPLIFICATION DETECTED] Detectat raspuns asimetric ({size_resp} bytes). Trunchiem pachetul.")
-                reply_trunchiat = request.reply()
-                reply_trunchiat.header.tc = 1  #conform RFC 1035
-                socket_curent.sendto(reply_trunchiat.pack(), client_addr)
-                return
+
+            ################ E REDUNDANT PT CA EU LUCREZ DOAR CU CERERI DE TIP A SI NS , ASTA AR PUTEA FI O CONTINUARE
+            # EVENTUALA CAND RESOLVERUL VA ALEA SI LOGICA PT INREGISTARRI TXT SAU SEMNATURI DNSSEC
+
+            # # PT DNS AMPLIFICATION
+            # # daca raspunsul e mult mai mare decat cererea (Asimetrie de amplificare)
+            # # si rata de cereri de la acest IP e suspecta, activam flag-ul TC (truncated)
+            # if size_resp > (size_req * 5) and nr_cereri_client > (DNS_FLOOD_MAX_REQS / 2):
+            #     print(f"[W]: [DNS AMPLIFICATION DETECTED] Detectat raspuns asimetric ({size_resp} bytes). Trunchiem pachetul.")
+            #     reply_trunchiat = request.reply()
+            #     reply_trunchiat.header.tc = 1  #conform RFC 1035
+            #     socket_curent.sendto(reply_trunchiat.pack(), client_addr)
+            #     return
 
             socket_curent.sendto(reply.pack(), client_addr)
 

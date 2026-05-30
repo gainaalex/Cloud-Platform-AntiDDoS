@@ -1,6 +1,19 @@
 # Cloud-Platform-AntiDDoS
 
 ## Update on 30th May 2026:
+- DNS Resolver Tested for:
+  - Flood Attacks:
+     - on valid addresses
+     - on made-up / fake addresses 
+     - + This graph illustrates the real-time evolution of a DNS flood attack against a DNS Resolver configured with a 1-second ban timeout, a compact setting chosen specifically to demonstrate how the system transitions between valid traffic processing and malicious traffic mitigation. It visually delimits the exact moments in time when the resolver detects the high volume of requests.
+  - Checking the domain addresses list returned is cyclical rotated each time
+  - The Negative Caching
+  - The Internal Caching
+  - The logic of driving through the Name Domains in order to resolve the address for domain
+  
+
+
+## Update on 29th May 2026:
 - The DNS infrastructure:
   - Resolver have implemented support for iterative searches through the NameDomains.
   - The Resolver has implemented tools to detect and block malicious IPs that are engaged in a DNS Request Flood Attack. Dynamic IP Blacklisting implies that every request made by a client will be counted. If their number exceeds a threshold (*DNS_FLOOD_MAX_REQS* requests) within a time window (*DNS_FLOOD_WINDOW* seconds), the client's IP is marked as infected, and requests coming from it will be ignored for a period of time (*DNS_BAN_TIMEOUT* seconds). The manner in which the DNS Resolver handles these requests will be through **DROP** (it no longer constructs a **REFUSED** response) to save computing resources on the server.

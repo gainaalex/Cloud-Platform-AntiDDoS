@@ -90,6 +90,9 @@ services:
       - NS_TARGET_PORT=53
       - REDIS_HOST=redis_resolver
       - REDIS_PORT=6379
+      - DNS_FLOOD_WINDOW=1
+      - DNS_FLOOD_MAX_REQS=80
+      - DNS_BAN_TIMEOUT=120
     ports:
       - "5333:5333/udp"
     networks:

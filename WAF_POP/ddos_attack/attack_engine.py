@@ -27,7 +27,7 @@ def run_flood(target_url, total_requests, thread_limit=10):
         threads.append(t)
         t.start()
 
-        # Limitare pentru a nu bloca stack-ul de retea local
+        #limitare pentru a nu bloca stack-ul de retea local
         if i % thread_limit == 0:
             time.sleep(0.01)
 
