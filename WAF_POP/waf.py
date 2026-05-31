@@ -75,8 +75,8 @@ def analyze_request(path, headers, body=""):
     # vezi rfc 3986
 
     #print(f"!!!!!path: {path}",flush=True)
-    decoded_path = urllib.parse.unquote(path)
-    decoded_body = urllib.parse.unquote(body)
+    decoded_path = urllib.parse.unquote_plus(path)
+    decoded_body = urllib.parse.unquote_plus(body)
 
     full_payload = decoded_path + " | " + decoded_body
 
@@ -110,6 +110,10 @@ class WAFNodeHandler(http.server.BaseHTTPRequestHandler):
             print(f"[*W] [RATE-LIMIT] IP {client_ip} blocat (Flood detected)")
             self.send_response(429)
             self.send_header('Content-type', 'text/html')
+            #-----------------------------------------------------------------------------------------------------------------------------------
+            #asta e pentru testul de flood pe waf
+            self.send_header('X-WAF-Node', socket.gethostname())
+            # -----------------------------------------------------------------------------------------------------------------------------------
             self.end_headers()
             self.wfile.write(b"<h1>429 Too Many Requests</h1><p>DDoS protection detected suspicios number of requests from you</p>")
             return
@@ -124,6 +128,10 @@ class WAFNodeHandler(http.server.BaseHTTPRequestHandler):
             # status http 403(forbidden)
             self.send_response(403)
             self.send_header('Content-type', 'text/html')
+            #-----------------------------------------------------------------------------------------------------------------------------------
+            #asta am adaugat pentru testul de signatures
+            self.send_header('X-WAF-Node', socket.gethostname())
+            # -----------------------------------------------------------------------------------------------------------------------------------
             self.end_headers()
             error_html = f"<html><body><h1>403 Forbidden</h1><p>Request blocked by WAF.</p><p>Reason: {threat_type}</p></body></html>"
             self.wfile.write(error_html.encode('utf-8'))
@@ -163,6 +171,14 @@ class WAFNodeHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(304)
                 for k,v in cached_data.get('headers', {}).items():
                     self.send_header(k, v)
+                # --------------------------------------------------------------------------------------------
+                # pt round robin test
+                self.send_header('X-WAF-Node', socket.gethostname())
+                # --------------------------------------------------------------------------------------------
+                #---------------------------------------------------------------------------------------------
+                #pt testul de ddos flood pe http
+                self.send_header('X-Cache', 'HIT')
+                # ---------------------------------------------------------------------------------------------
                 self.end_headers()
                 print(f"[*I] [CDN-HIT] Validare cu ETag reusita (ReturnCODE:304)")
                 return
@@ -172,6 +188,16 @@ class WAFNodeHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(cached_data.get('status',200))
                 for k,v in cached_data.get('headers', {}).items():
                     self.send_header(k, v)
+
+                # --------------------------------------------------------------------------------------------
+                # pt round robin test
+                self.send_header('X-WAF-Node', socket.gethostname())
+                # --------------------------------------------------------------------------------------------
+                # ---------------------------------------------------------------------------------------------
+                # pt testul de ddos flood pe http
+                self.send_header('X-Cache', 'HIT')
+                # ---------------------------------------------------------------------------------------------
+
                 self.end_headers()
 
                 self.wfile.write(cached_data.get('body','').encode('utf-8'))
@@ -211,6 +237,16 @@ class WAFNodeHandler(http.server.BaseHTTPRequestHandler):
                     self.send_response(200)
                     for k,v in cached_data.get('headers', {}).items():
                         self.send_header(k, v)
+
+                    # --------------------------------------------------------------------------------------------
+                    # pt round robin test
+                    self.send_header('X-WAF-Node', socket.gethostname())
+                    # --------------------------------------------------------------------------------------------
+                    # ---------------------------------------------------------------------------------------------
+                    # pt testul de ddos flood pe http
+                    self.send_header('X-Cache', 'MISS')
+                    # ---------------------------------------------------------------------------------------------
+
                     self.end_headers()
                     self.wfile.write(cached_data.get('body','').encode('utf-8'))
                     return
@@ -225,11 +261,19 @@ class WAFNodeHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(resp_status_code)
             for k,v in resp_headers_dict.items():
                 self.send_header(k, v)
+            #--------------------------------------------------------------------------------------------
+            #pt round robin test
+            self.send_header('X-WAF-Node', socket.gethostname())
+            #--------------------------------------------------------------------------------------------
             self.end_headers()
             self.wfile.write(resp_body_bytes)
 
         except urllib.error.HTTPError as e:
             self.send_response(e.code)
+            #asta am adaugat pentru testul de signatures
+            self.send_header('X-WAF-Node', socket.gethostname())
+            # --------------------------------------------------------------------------------------------
+
             self.end_headers()
             self.wfile.write(e.read())
         except Exception as e:

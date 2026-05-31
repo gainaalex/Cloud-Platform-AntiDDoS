@@ -7,6 +7,18 @@ services:
     networks:
       - ddos_net
 
+  pop_setup:
+    build: .
+    container_name: ddos_pop_setup
+    command: python pop_setup.py
+    environment:
+      - REDIS_HOST=redis
+    depends_on:
+      - redis
+    networks:
+      - ddos_net
+    restart: "no"
+
   pop_lb:
     build: .
     container_name: ddos_pop
@@ -25,11 +37,12 @@ services:
     build: .
     command: python waf.py 8000
     restart: always
+    #restart: "no"
     environment:
       - REDIS_HOST=redis
       - WAF_FLOOD_WINDOW=1
       - WAF_FLOOD_MAX_REQS=50
-      - WAF_BAN_TIMEOUT=120
+      - WAF_BAN_TIMEOUT=30
       - PYTHONUNBUFFERED=1
     depends_on:
       - redis
@@ -37,17 +50,6 @@ services:
       - ddos_net
       - mycloud_global_net
 
-  pop_setup:
-    build: .
-    container_name: ddos_pop_setup
-    command: python pop_setup.py
-    environment:
-      - REDIS_HOST=redis
-    depends_on:
-      - redis
-    networks:
-      - ddos_net
-    restart: "no"
 
 networks:
   ddos_net:

@@ -1,11 +1,30 @@
 # Cloud-Platform-AntiDDoS
 
+## Update on 31th May 2026
+- POP Tested for:
+  - Correctness of request distribution logic between healthy Endpoints (Round Robin)
+  ![Request Distribution Graph between Endpoints](WAF_POP/poptests/test_round_robin_pop.png)
+  - Multiple endpoint crash simulations (without reboot logic support) and calculation of their average detection time and request redistribution to healthy endpoints
+  ![Serial Endpoint Crashing Graph](WAF_POP/poptests/test_crash_2.png)
+  - Simulation of the average recovery time for endpoints after a simultaneous crash (practically the entire POP goes down)
+  ![Simultaneous Endpoint Crashes Graph](WAF_POP/poptests/test_failover.png)
+  
+- WAF Tested for:
+  - Per-Endpoint distribution of all types of malicious signatures that can appear in requests: SQL INJECTION, XSS, Path Traversal, Reserved Names, Sensitive Port, Known Scanner, and Clean.
+  ![Malicious Signatures Distribution Graph per Endpoint](WAF_POP/waftests/grafic_distributie_atacuri_malitioase_per_nod.png)
+  - HTTP DDoS Flood Prevention. With statistics about the request authenticity validation window and Ban time, requests sent to the origin server, and those resolved from CDN Cache HIT
+  ![DDoS Attack Simulation Graph](WAF_POP/waftests/flood_grafic_2.png)
+
+      
+
 ## Update on 30th May 2026:
 - DNS Resolver Tested for:
   - Flood Attacks:
      - on valid addresses
      - on made-up / fake addresses 
-     - + This graph illustrates the real-time evolution of a DNS flood attack against a DNS Resolver configured with a 1-second ban timeout, a compact setting chosen specifically to demonstrate how the system transitions between valid traffic processing and malicious traffic mitigation. It visually delimits the exact moments in time when the resolver detects the high volume of requests.
+     - plus graphs illustrates the real-time evolution (for each case previously mentioned) of a DNS flood attack against a DNS Resolver configured with a 1-second ban timeout, a compact setting chosen specifically to demonstrate how the system transitions between valid traffic processing and malicious traffic mitigation. It visually delimits the exact moments in time when the resolver detects the high volume of requests.
+ ![Graph DNS FLOOD on a REAL ADDRESS](DNS/DNS_Resolver/AtacVolumericDNSDomeniuReal.png)
+ ![Graph DNS FLOOD on a MADEUP ADDRESS](DNS/DNS_Resolver/AtacVolumericDNSDomeniuFake.png)
   - Checking the domain addresses list returned is cyclical rotated each time
   - The Negative Caching
   - The Internal Caching

@@ -6,7 +6,7 @@ import threading
 import os
 import redis
 
-# Acest POP e un load balancer ce va distribui catre endpoints (serverele de WAF)
+# acest POP e un load balancer ce va distribui catre endpoints (serverele de WAF)
 LB_IP = os.getenv('POP_IP', '0.0.0.0')
 LB_PORT = int(os.getenv('POP_PORT', 8080))
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
@@ -132,6 +132,11 @@ class ProxyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         except urllib.error.HTTPError as e:
             # pentru eventualele erori Http ridicate ulterior
             self.send_response(e.code)
+            #------------------------------------------------------------------------------------------
+            #asta e pt testul de waf signatures
+            for key, value in e.headers.items():
+                self.send_header(key, value)
+            # ------------------------------------------------------------------------------------------
             self.end_headers()
             self.wfile.write(e.read())
             print(f"[*W]:[WAF-BLOCK] Endpoint-ul a blocat cererea cu status {e.code}")

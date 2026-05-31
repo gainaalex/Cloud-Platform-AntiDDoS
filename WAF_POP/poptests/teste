@@ -1,0 +1,3 @@
+
+#testare faptul ca cererile primite de pop sunt impartite intre endpoints (waf-uri)
+curl -v -H "Host: edu.tuiasi.ro" http://127.0.0.1:8080/static/image.jpg
