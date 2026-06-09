@@ -77,10 +77,13 @@ Referinte:
 Pentru DNS Resolver si Name Service
 * RFC 1034
 * RFC 1035
+* RFC 8482 For DNS Amplification
 
 Pentru WAF:
 * RFC 3986
 * RFC 9110
+* RFC 9111
+* RFC 7239
 * https://owasp.org/Top10/2025/A05_2025-Injection/
 * OWASP ModSecurity Core Rule Set (CRS)
 * SQL Injection Knowledgebase (via @LightOS) -> http://websec.ca/kb/sql_injection

@@ -92,7 +92,7 @@ services:
       - REDIS_PORT=6379
       - DNS_FLOOD_WINDOW=1
       - DNS_FLOOD_MAX_REQS=80
-      - DNS_BAN_TIMEOUT=120
+      - DNS_BAN_TIMEOUT=15
     ports:
       - "5333:5333/udp"
     networks:

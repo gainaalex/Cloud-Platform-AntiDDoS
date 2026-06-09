@@ -42,7 +42,7 @@ services:
       - REDIS_HOST=redis
       - WAF_FLOOD_WINDOW=1
       - WAF_FLOOD_MAX_REQS=50
-      - WAF_BAN_TIMEOUT=30
+      - WAF_BAN_TIMEOUT=15 #pune pe 30
       - PYTHONUNBUFFERED=1
     depends_on:
       - redis
