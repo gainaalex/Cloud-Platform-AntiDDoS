@@ -44,17 +44,17 @@ def populeaza_redis():
         print(f"[I:] ROTLD populat. ns.mycloud.ro -> {mycloud_ip}")
 
 
-    elif NS_ROLE == 'MYCLOUD':
-        domenii_protejate = {
-            "A:edu.tuiasi.ro.": {"type": "A", "ips": ["10.0.0.50", "10.0.0.51"], "ttl": 30},
-            "A:emag.ro.": {"type": "A", "ips": ["10.0.0.50", "10.0.0.51"], "ttl": 30},
-            "A:magazin.mycloud.ro.": {"type": "A", "ips": ["10.0.0.100"], "ttl": 300},
-            "A:api.mycloud.ro.": {"type": "A", "ips": ["10.0.0.200", "10.0.0.201"], "ttl": 30}
-        }
-
-        for domeniu, date in domenii_protejate.items():
-            db.set(domeniu, json.dumps(date))
-        print("[I:] MYCLOUD_AUTH populat.")
+    # elif NS_ROLE == 'MYCLOUD':
+    #     domenii_protejate = {
+    #         "A:edu.tuiasi.ro.": {"type": "A", "ips": ["10.0.0.50", "10.0.0.51"], "ttl": 30},
+    #         "A:emag.ro.": {"type": "A", "ips": ["10.0.0.50", "10.0.0.51"], "ttl": 30},
+    #         "A:magazin.mycloud.ro.": {"type": "A", "ips": ["10.0.0.100"], "ttl": 300},
+    #         "A:api.mycloud.ro.": {"type": "A", "ips": ["10.0.0.200", "10.0.0.201"], "ttl": 30}
+    #     }
+    #
+    #     for domeniu, date in domenii_protejate.items():
+    #         db.set(domeniu, json.dumps(date))
+    #     print("[I:] MYCLOUD_AUTH populat.")
 
 def get_all_data():
     chei = db.keys('*')

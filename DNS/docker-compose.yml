@@ -3,6 +3,8 @@ version: '3.8'
 networks:
   dns_network:
     driver: bridge
+  mycloud_global_net:
+    external: true
 
 services:
   redis_root:
@@ -54,6 +56,18 @@ services:
     container_name: redis_mycloud
     networks:
       - dns_network
+      - mycloud_global_net
+
+  mycloud_control_plane:
+    build: ./DNS_Nameserver
+    container_name: control_plane_dns
+    command: [ "python", "-u", "control_plane.py" ]
+    depends_on:
+      - redis_mycloud
+    environment:
+      - REDIS_HOST=redis_mycloud
+    networks:
+      - dns_network
 
   ns_mycloud:
     build: ./DNS_Nameserver
@@ -91,8 +105,9 @@ services:
       - REDIS_HOST=redis_resolver
       - REDIS_PORT=6379
       - DNS_FLOOD_WINDOW=1
-      - DNS_FLOOD_MAX_REQS=80
+      - DNS_FLOOD_MAX_REQS=800000 #pune 80
       - DNS_BAN_TIMEOUT=15
+      - NXDOMAIN_CACHE_TTL=10
     ports:
       - "5333:5333/udp"
     networks:

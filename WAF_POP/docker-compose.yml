@@ -3,13 +3,13 @@ version: '3.8'
 services:
   redis:
     image: redis:alpine
-    container_name: ddos_redis
+    #container_name: ddos_redis
     networks:
       - ddos_net
 
   pop_setup:
     build: .
-    container_name: ddos_pop_setup
+    #container_name: ddos_pop_setup
     command: python pop_setup.py
     environment:
       - REDIS_HOST=redis
@@ -21,17 +21,20 @@ services:
 
   pop_lb:
     build: .
-    container_name: ddos_pop
+    #container_name: ddos_pop
     command: python main.py
     ports:
-      - "8080:8080"
+      - "80"
     environment:
+      - POP_PORT=80
       - REDIS_HOST=redis
+      - GLOBAL_DNS_REDIS=redis_mycloud
       - PYTHONUNBUFFERED=1
     depends_on:
       - redis
     networks:
       - ddos_net
+      - mycloud_global_net
 
   waf_node:
     build: .

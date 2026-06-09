@@ -23,3 +23,28 @@ docker ps
 docker logs -f ~nume_container~
 
 docker-compose config
+
+POP_ID=pop_timis docker-compose -p timis up --scale waf_node=1 --build -d
+
+POP_ID=pop_brasov docker-compose -p brasov up --scale waf_node=7 --build -d
+
+POP_ID=pop_cluj docker-compose -p cluj up --scale waf_node=4 --build -d
+
+POP_ID=pop_buc docker-compose -p buc up --scale waf_node=3 --build -d
+
+POP_ID=pop_iasi docker-compose -p iasi up --scale waf_node=2 --build -d
+#asa opresti (ambele linii):
+docker-compose -p iasi down
+docker rm -f ddos_pop ddos_pop_setup ddos_redis 2>/dev/null
+
+also, daca vezi ca salvat niste hashuri invalide:
+docker-compose -p buc down --remove-orphans
+
+
+docker-compose -p iasi logs -f
+docker-compose -p iasi ps
+docker logs -f nume_container
+
+docker-compose -p iasi down
+
+docker-compose -p iasi stop
