@@ -1,0 +1,16 @@
+dig @127.0.0.1 -p 5333 vatafu.ro
+
+dig @127.0.0.1 -p 5333 edu.tuiasi.ro
+
+#asta exista deja => ERR code 409
+curl -i -X POST "http://127.0.0.1:8080/buy?domain=vatafu.ro"
+
+curl -X POST "http://127.0.0.1:8080/buy?domain=licenta.ro&ip=89.89.89.89"
+
+dig @127.0.0.1 -p 5333 licenta.ro
+
+curl -X POST "http://127.0.0.1:8080/buy?domain=lenovo.ro"
+
+dig @127.0.0.1 -p 5333 lenovo.ro
+
++ foloseste rezultatele test_enroll_client.py

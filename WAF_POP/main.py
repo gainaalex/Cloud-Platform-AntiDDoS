@@ -16,7 +16,6 @@ GLOBAL_DNS_REDIS = os.getenv('GLOBAL_DNS_REDIS', 'redis_mycloud')
 def get_my_global_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        # Ne prefacem că trimitem date la DNS doar ca să vedem ce IP primim în rețeaua mycloud_global_net
         s.connect((GLOBAL_DNS_REDIS, 6379))
         my_ip = s.getsockname()[0]
     except Exception:
@@ -29,18 +28,17 @@ def send_heartbeat_to_dns():
     try:
         dns_db = redis.Redis(host=GLOBAL_DNS_REDIS, port=6379, decode_responses=True)
     except Exception as e:
-        print(f"[*E] Eroare conexiune DNS Global: {e}")
+        print(f"[*E] Eroare la conexiunea cu DNS Global: {e}")
         return
 
     while True:
         my_ip = get_my_global_ip()
         if my_ip != '127.0.0.1':
             try:
-                # Cheia va fi de forma heartbeat:POP:172.20.0.x
                 dns_db.set(f"heartbeat:POP:{my_ip}", "alive", ex=15)
-                print(f"[*I] [HEARTBEAT] POP la {my_ip} înregistrat în DNS.")
+                print(f"[*I] [HEARTBEAT] POP la {my_ip} inregistrat în DNS.")
             except Exception as e:
-                print(f"[*E] Heartbeat a eșuat: {e}")
+                print(f"[*E] Heartbeat a esuat: {e}")
         time.sleep(10)
 
 class LoadBalancerCore:
@@ -55,7 +53,6 @@ class LoadBalancerCore:
 
     def health_check(self):
         while True:
-            # facem discovery pe nodurile gasite de redis
             try:
                 keys = self.r.keys("waf_node:*")
                 self.endpoints = [k.replace("waf_node:", "") for k in keys]

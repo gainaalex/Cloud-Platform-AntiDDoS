@@ -13,7 +13,7 @@ import json
 
 from cdn_logic import CDNManager
 
-# Parametrii WAF flood prevention
+# parametrii WAF flood prevention
 WAF_FLOOD_WINDOW = int(os.getenv('WAF_FLOOD_WINDOW', 1))
 WAF_FLOOD_MAX_REQS = int(os.getenv('WAF_FLOOD_MAX_REQS', 50))
 WAF_BAN_TIMEOUT = int(os.getenv('WAF_BAN_TIMEOUT', 120))
@@ -22,8 +22,12 @@ WAF_BAN_TIMEOUT = int(os.getenv('WAF_BAN_TIMEOUT', 120))
 # waf e pe nivelul 7 in osi
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
+GLOBAL_DNS_REDIS = os.getenv('GLOBAL_DNS_REDIS', 'redis_mycloud')
 
 redis_client = redis.Redis(host=REDIS_HOST, port=6379, decode_responses=True)
+
+#conexiunea cu bd ce contine adresele efective ale origin servers
+global_redis_client = redis.Redis(host=GLOBAL_DNS_REDIS, port=6379, decode_responses=True)
 
 cdn_manager = CDNManager(redis_client=redis_client)
 
@@ -153,7 +157,7 @@ class WAFNodeHandler(http.server.BaseHTTPRequestHandler):
         # --------------------------------------------------------------------------------------------------------------------------
 
         #logica cu CDN
-        origin_address=redis_client.get(f"origin:{host_header}")
+        origin_address=global_redis_client.get(f"origin:{host_header}")
         if not origin_address:
             print(f"[*E] [ROUTING] Domeniul cerut {host_header} nu e resolved in myCloud Network")
             self.send_error(502,f"Bad Gateway: Domeniul {host_header} nu e resolved in myCloud Network")

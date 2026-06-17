@@ -7,17 +7,17 @@ services:
     networks:
       - ddos_net
 
-  pop_setup:
-    build: .
-    #container_name: ddos_pop_setup
-    command: python pop_setup.py
-    environment:
-      - REDIS_HOST=redis
-    depends_on:
-      - redis
-    networks:
-      - ddos_net
-    restart: "no"
+#  pop_setup:
+#    build: .
+#    #container_name: ddos_pop_setup
+#    command: python pop_setup.py
+#    environment:
+#      - REDIS_HOST=redis
+#    depends_on:
+#      - redis
+#    networks:
+#      - ddos_net
+#    restart: "no"
 
   pop_lb:
     build: .

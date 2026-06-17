@@ -4,6 +4,8 @@ dig @127.0.0.1 -p 5333 vatafu.ro
 dig @127.0.0.1 -p 5333 edu.tuiasi.ro
 dig @127.0.0.1 -p 5333 emag.ro
 
+dig @127.0.0.1 -p 5333 edu.tuiasi.ro
+
 
 #coduri pt teste:
 #aici arat cum initial va itera pana la root si va cobora in arbore pana la mycloud ns
@@ -18,5 +20,15 @@ dig @127.0.0.1 -p 5333 fake.edu.tuiasi.ro. A
 
 #pt a testa impotriva DNS Amplification (ANY e vulnerabil deci cererile de genul sunt blocate)
 dig @127.0.0.1 -p 5333 edu.tuiasi.ro. ANY
+
+
+pt a adauga noi domenii in rotld:
+#asta trebuie sa dea NXDOMAIN
+dig @127.0.0.1 -p 5333 licenta.ro
+curl -X POST "http://127.0.0.1:5000/register?domain=licenta.ro&origin=10.0.0.99:80"
+
+#acum ar trebui sa returneze ip urile pop urilor
+dig @127.0.0.1 -p 5333 licenta.ro
+
 
 

@@ -112,3 +112,34 @@ services:
       - "5333:5333/udp"
     networks:
       - dns_network
+
+  rotld_api:
+      build: ./MyCloud_Manager
+      container_name: rotld_api
+      command: [ "python", "-u", "rotld_api.py" ]
+      ports:
+        - "8080:8080"
+      environment:
+        - ROTLD_REDIS_HOST=redis_rotld
+        - ROTLD_PORT=8080
+      depends_on:
+        - redis_rotld
+      networks:
+        - dns_network
+
+  mycloud_api:
+      build: ./MyCloud_Manager
+      container_name: mycloud_api
+      command: [ "python", "-u", "myCloud_api.py" ]
+      ports:
+        - "5050:5000"
+      environment:
+        - MYCLOUD_REDIS_HOST=redis_mycloud
+        - API_PORT=5000
+        - API_KEY=micunealta-secreta
+        - ROTLD_API_URL=http://rotld_api:8080
+      depends_on:
+        - redis_mycloud
+        - rotld_api
+      networks:
+        - dns_network

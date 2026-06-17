@@ -5,6 +5,8 @@ python3 mini_waf.py 8081 sau 8082
 pt a testa ca cererea e trimisa catre mai waf ere diferite:
 http://127.0.0.1:8080/
 
+dig @127.0.0.1 -p 5333 edu.tuiasi.ro
+
 
 exemplu de cerere invalida:
 http://127.0.0.1:8080/search?id=' UNION SELECT NULL--
@@ -48,3 +50,6 @@ docker logs -f nume_container
 docker-compose -p iasi down
 
 docker-compose -p iasi stop
+
+
+docker inspect -f '{{.Name}} - {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker ps -q)

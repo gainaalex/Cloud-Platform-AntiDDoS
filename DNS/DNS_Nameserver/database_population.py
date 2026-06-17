@@ -12,7 +12,6 @@ db = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
 NS_ROLE = os.getenv('NS_ROLE', 'MYCLOUD')
 
-###!!! Functie pentru a transforma numele containerului in IP folosind Docker DNS
 def resolve_docker_host(hostname):
     try:
         return socket.gethostbyname(hostname)
@@ -34,27 +33,18 @@ def populeaza_redis():
 
 
     elif NS_ROLE == 'ROTLD':
-        mycloud_hostname = os.getenv('MYCLOUD_HOSTNAME', 'ns_mycloud')
+
+        mycloud_hostname = os.getenv('MYCLOUD_HOSTNAME', 'ns.mycloud.ro')
         mycloud_ip = resolve_docker_host(mycloud_hostname)
 
+        db.set("NS:emag.ro.", json.dumps({"type": "NS", "ips": ["ns.mycloud.ro."], "ttl": 120}))
         db.set("NS:mycloud.ro.", json.dumps({"type": "NS", "ips": ["ns.mycloud.ro."], "ttl": 120}))
         db.set("NS:edu.tuiasi.ro.", json.dumps({"type": "NS", "ips": ["ns.mycloud.ro."], "ttl": 120}))
         db.set("A:ns.mycloud.ro.", json.dumps({"type": "A", "ips": [mycloud_ip], "ttl": 120}))
         db.set("A:vatafu.ro.", json.dumps({"type": "A", "ips": ["20.20.20.21"], "ttl": 10}))
+        db.set("A:digi.ro.", json.dumps({"type": "A", "ips": ["80.17.101.33"], "ttl": 10}))
         print(f"[I:] ROTLD populat. ns.mycloud.ro -> {mycloud_ip}")
 
-
-    # elif NS_ROLE == 'MYCLOUD':
-    #     domenii_protejate = {
-    #         "A:edu.tuiasi.ro.": {"type": "A", "ips": ["10.0.0.50", "10.0.0.51"], "ttl": 30},
-    #         "A:emag.ro.": {"type": "A", "ips": ["10.0.0.50", "10.0.0.51"], "ttl": 30},
-    #         "A:magazin.mycloud.ro.": {"type": "A", "ips": ["10.0.0.100"], "ttl": 300},
-    #         "A:api.mycloud.ro.": {"type": "A", "ips": ["10.0.0.200", "10.0.0.201"], "ttl": 30}
-    #     }
-    #
-    #     for domeniu, date in domenii_protejate.items():
-    #         db.set(domeniu, json.dumps(date))
-    #     print("[I:] MYCLOUD_AUTH populat.")
 
 def get_all_data():
     chei = db.keys('*')
@@ -70,5 +60,5 @@ def get_all_data():
             print(f"[I:] {cheie} -> IP/NS: {valoare['ips']} | TTL: {valoare['ttl']} | Type: {valoare['type']}")
     print("=" * 40 + "\n")
 
-if __name__ == "__main__":
-    populeaza_redis()
+# if __name__ == "__main__":
+#     populeaza_redis()
