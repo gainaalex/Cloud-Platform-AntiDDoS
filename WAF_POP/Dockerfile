@@ -6,6 +6,6 @@ COPY . /app
 
 RUN pip install -r requirements.txt
 
-EXPOSE 8080/udp
+EXPOSE 80
 
 CMD ["python","-u", "main.py"]

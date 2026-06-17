@@ -23,8 +23,8 @@ services:
     build: .
     #container_name: ddos_pop
     command: python main.py
-    ports:
-      - "80"
+#    ports:
+#      - "80"
     environment:
       - POP_PORT=80
       - REDIS_HOST=redis

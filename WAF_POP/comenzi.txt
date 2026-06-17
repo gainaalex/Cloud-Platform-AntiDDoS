@@ -2,6 +2,10 @@ in mini_waf
 
 python3 mini_waf.py 8081 sau 8082
 
+asa faci o cerere din interiorul retelei docker pt a verifica o resursa
+docker run --rm --network mycloud_global_net curlimages/curl -i -H "Host: edu.tuiasi.ro" http://172.20.0.4/static/image.jpg
+
+
 pt a testa ca cererea e trimisa catre mai waf ere diferite:
 http://127.0.0.1:8080/
 
