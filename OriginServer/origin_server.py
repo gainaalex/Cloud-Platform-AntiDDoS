@@ -31,7 +31,7 @@ class OriginHandler(http.server.BaseHTTPRequestHandler):
 
             self.send_response(200)
             self.send_header('Content-type', 'image/jpeg')
-            self.send_header('Cache-Control', 'public, max-age=60')  # Expira in 1 ora
+            self.send_header('Cache-Control', 'public, max-age=5')#pune 60
             self.send_header('ETag', etag)
             self.end_headers()
             self.wfile.write(body.encode('utf-8'))

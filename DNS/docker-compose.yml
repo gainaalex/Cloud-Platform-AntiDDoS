@@ -105,7 +105,7 @@ services:
       - REDIS_HOST=redis_resolver
       - REDIS_PORT=6379
       - DNS_FLOOD_WINDOW=1
-      - DNS_FLOOD_MAX_REQS=800000 #pune 80
+      - DNS_FLOOD_MAX_REQS=80 #pune 800000
       - DNS_BAN_TIMEOUT=15
       - NXDOMAIN_CACHE_TTL=10
     ports:

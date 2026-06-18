@@ -14,35 +14,6 @@ db = redis.Redis(host=REDIS_HOST, port=6379, decode_responses=True)
 import socket
 
 
-def resolve_docker_host(hostname):
-    try:
-        return socket.gethostbyname(hostname)
-    except socket.gaierror as e:
-        print(f"[*E] Nu am putut rezolva host-ul {hostname}: {e}")
-        return "127.0.0.1"
-
-
-def seed_rotld():
-    print("[*I] ROTLD: Initializez datele de baza (Seed)...")
-
-    mycloud_ip = resolve_docker_host('ns_mycloud')
-    db.set("A:ns.mycloud.ro.", json.dumps({"type": "A", "ips": [mycloud_ip], "ttl": 120}))
-
-    domenii_protejate = ["edu.tuiasi.ro.",
-                         "api.mycloud.ro.",
-                         "magazin.mycloud.ro.",
-                         "emag.ro."]
-    for dom in domenii_protejate:
-        db.delete(f"A:{dom}")
-        db.set(f"NS:{dom}", json.dumps({"type": "NS", "ips": ["ns.mycloud.ro."], "ttl": 120}))
-
-    db.delete("NS:vatafu.ro.")
-    db.set("A:vatafu.ro.", json.dumps({"type": "A", "ips": ["20.20.20.21"], "ttl": 10}))#trebuie 3600 asa e standardul
-    db.set("A:digi.ro.", json.dumps({"type": "A", "ips": ["80.20.15.43"], "ttl": 10}))
-
-    print(f"[*I] ROTLD: Seed complet. ns.mycloud.ro mapat la {mycloud_ip}")
-
-
 class ROTLDHandler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -104,7 +75,6 @@ class ROTLDHandler(http.server.BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    seed_rotld()
     server = socketserver.TCPServer(("0.0.0.0", PORT), ROTLDHandler)
     print(f"[*I] ROTLD API pornit pe portul {PORT}")
     server.serve_forever()

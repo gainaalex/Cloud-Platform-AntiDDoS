@@ -22,7 +22,6 @@ def resolve_docker_host(hostname):
 def populeaza_redis():
     db.flushdb()
 
-
     if NS_ROLE == 'ROOT':
         rotld_hostname = os.getenv('ROTLD_HOSTNAME', 'ns_rotld')
         rotld_ip = resolve_docker_host(rotld_hostname)
