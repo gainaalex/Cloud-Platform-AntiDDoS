@@ -106,8 +106,8 @@ services:
       - REDIS_PORT=6379
       - DNS_FLOOD_WINDOW=1
       - DNS_FLOOD_MAX_REQS=80 #pune 800000
-      - DNS_BAN_TIMEOUT=15
-      - NXDOMAIN_CACHE_TTL=10
+      - DNS_BAN_TIMEOUT=20 #pune macar 15
+      - NXDOMAIN_CACHE_TTL=10 #pune 10
     ports:
       - "5333:5333/udp"
     networks:

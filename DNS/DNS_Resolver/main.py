@@ -33,7 +33,7 @@ REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
 db = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 # in redis, informatiile de tip A despre domeniul x sunt stocate A:x
 #                           tip NS sunt stocate: NS:x
-#                           tip CNAME sunt stocate: CNAME:x
+#                           TODO:tip CNAME sunt stocate: CNAME:x
 
 
 ROOT_HOSTNAME = os.getenv('ROOT_HOSTNAME', 'dns_root')
@@ -148,7 +148,7 @@ def interogare_iterativa(qname):
                         db.set(f"NXDOMAIN:{nume_cautat}", 1, ex=NXDOMAIN_CACHE_TTL)
                         return None, 0
 
-                # !!! cazul basic: stocam in bd datele cu ttl mai mare de 1
+                # cazul obisnuit: stocam in bd datele cu ttl mai mare de 1
                 adrese_colectate = []
                 nume_domeniu=None
                 for rr in raspuns.rr:

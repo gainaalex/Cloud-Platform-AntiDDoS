@@ -12,8 +12,11 @@ RESOLVER_IP = "127.0.0.1"
 RESOLVER_PORT = 5333
 DOMENIU_TEST = "api.mycloud.ro"
 
-DURATA_ATAC_SECUNDE = 3.5
-RATA_CERERI_PE_SECUNDA = 300
+DURATA_ATAC_SECUNDE = 10
+RATA_CERERI_PE_SECUNDA = 250
+BAN_TIME=1
+DNS_FLOOD_WINDOW = 1
+DNS_FLOOD_MAX_REQS = 80
 
 
 date_grafic = []
@@ -88,7 +91,7 @@ def genereaza_grafic():
         cumulativ_succes.append(c_s)
         cumulativ_blocat.append(c_b)
 
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(11, 8)) # Am marit putin inaltimea pentru a incapea caseta
 
     label_verde = f'Trafic Permis ({c_s} cereri)'
     label_rosu = f'Trafic Blocat ({c_b} cereri)'
@@ -103,7 +106,7 @@ def genereaza_grafic():
         lbl = 'Ban Activat (Detectie DDoS)' if i == 0 else ""
         plt.axvline(x=t, color='#dc3545', linestyle='--', linewidth=1.5, alpha=0.8, label=lbl)
 
-    plt.title(f"Testare DNS Flood. Domeniu:{DOMENIU_TEST}. Ban time= 1s", fontsize=14, pad=15)
+    plt.title(f"Testare DNS Flood", fontsize=14, pad=15, fontweight='bold')
     plt.xlabel('Timp (secunde)', fontsize=12)
     plt.ylabel('Volumul cererilor', fontsize=12)
     plt.legend(loc='upper left', fontsize=10)
@@ -115,7 +118,30 @@ def genereaza_grafic():
                 max(cumulativ_blocat) if cumulativ_blocat else 0)
     plt.ylim(bottom=0, top=max_y + (max_y * 0.2))
 
-    plt.tight_layout()
+    # --- GENERARE CASETA TEXT ---
+    total_cereri = c_s + c_b
+    rata_efectiva = total_cereri / DURATA_ATAC_SECUNDE if DURATA_ATAC_SECUNDE > 0 else 0
+
+    text_statistici = (
+        f"PARAMETRI DE TEST CONFIGURATI:\n"
+        f"-------------------------------------------------\n"
+        f"Tinta atac:            {DOMENIU_TEST}\n"
+        f"Durata simulare:       {DURATA_ATAC_SECUNDE} secunde\n"
+        f"Flux cereri acceptabil: {DNS_FLOOD_MAX_REQS} cereri/{DNS_FLOOD_WINDOW}s\n"
+        f"Timp Ban:       {BAN_TIME} secunde\n"
+        f"\nREZULTATE OBTINUTE IN URMA ATACULUI:\n"
+        f"-------------------------------------------------\n"
+        f"TOTAL Pachete emise:   {total_cereri}\n"
+        f"Rata efectiva atinsa:  {rata_efectiva:.1f} cereri/secunda\n"
+        f" >> Trafic Permis:     {c_s} cereri\n"
+        f" >> Trafic Blocat:     {c_b} cereri\n"
+    )
+
+    box_props = dict(boxstyle='round,pad=0.6', facecolor='#f8f9fa', alpha=0.95, edgecolor='#ced4da')
+    plt.figtext(0.5, 0.03, text_statistici, ha="center", fontsize=10, family='monospace', bbox=box_props)
+
+    # Ridicam graficul pentru a face loc complet textului
+    plt.subplots_adjust(bottom=0.35)
     plt.show()
 
 

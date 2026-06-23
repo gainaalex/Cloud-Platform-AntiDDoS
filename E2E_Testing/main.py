@@ -46,7 +46,7 @@ def rezolva_dns():
 def trimite_cerere_http(ip_pop, tip_atac="CLEAN", timp_start=0):
     # Setam fizic adresa laptopului si portul pe care ai deschis POP-ul Iasi (sau pune 8086 pt Timis)
     HOST_IP = "127.0.0.1"
-    HOST_PORT = "8087"
+    HOST_PORT = "8086"
 
     url = f"http://{HOST_IP}:{HOST_PORT}{TARGET_PATH}"
     headers = {"Host": TARGET_DOMAIN, "User-Agent": "E2E-Tester"}
@@ -104,11 +104,14 @@ def scenariul_1_flash_crowd():
 
 def scenariul_2_dns_amplification():
     print("[Scenariul 2] Atac L3/L4 (DNS Rate Limit / Amplification)...")
-    # Tragem sute de cereri DNS pe secunda pentru a activa limitatorul din dns_resolver.py
     timp_start = time.time()
-    while time.time() - timp_start < DURATA_SCENARIU:
-        rezolva_dns()
-        time.sleep(0.001)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=WORKERS) as executor:
+        while time.time() - timp_start < DURATA_SCENARIU:
+            executor.submit(rezolva_dns)
+            time.sleep(0.005)
+
+    time.sleep(1)
 
 
 def scenariul_3_http_flood():

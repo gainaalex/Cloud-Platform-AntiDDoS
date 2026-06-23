@@ -1,0 +1,87 @@
+<mxfile host="app.diagrams.net" agent="5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36">
+  <diagram name="Page-1" id="2YBvvXClWsGukQMizWep">
+    <mxGraphModel dx="1348" dy="915" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="e6qA8uhxEHSEWFIFtHGd-14" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};participant=umlActor;convertToSvg=0;svgWhiteSpace=wrap;" value="" vertex="1">
+          <mxGeometry height="300" width="20" x="170" y="43" as="geometry" />
+        </mxCell>
+        <mxCell id="e6qA8uhxEHSEWFIFtHGd-15" parent="e6qA8uhxEHSEWFIFtHGd-14" style="points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};convertToSvg=0;" value="" vertex="1">
+          <mxGeometry height="175" width="10" x="5" y="82" as="geometry" />
+        </mxCell>
+        <mxCell id="e6qA8uhxEHSEWFIFtHGd-16" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};participant=umlActor;convertToSvg=0;svgWhiteSpace=wrap;" value="" vertex="1">
+          <mxGeometry height="300" width="20" x="239" y="43" as="geometry" />
+        </mxCell>
+        <mxCell id="e6qA8uhxEHSEWFIFtHGd-17" parent="e6qA8uhxEHSEWFIFtHGd-16" style="points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};convertToSvg=0;" value="" vertex="1">
+          <mxGeometry height="137" width="10" x="5" y="154" as="geometry" />
+        </mxCell>
+        <mxCell id="e6qA8uhxEHSEWFIFtHGd-18" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};convertToSvg=0;svgWhiteSpace=wrap;" value="Website" vertex="1">
+          <mxGeometry height="300" width="100" x="308" y="43" as="geometry" />
+        </mxCell>
+        <mxCell id="e6qA8uhxEHSEWFIFtHGd-19" parent="e6qA8uhxEHSEWFIFtHGd-18" style="points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};convertToSvg=0;" value="" vertex="1">
+          <mxGeometry height="194" width="10" x="45" y="82" as="geometry" />
+        </mxCell>
+        <mxCell id="e6qA8uhxEHSEWFIFtHGd-20" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};convertToSvg=0;svgWhiteSpace=wrap;" value="Origin Server" vertex="1">
+          <mxGeometry height="300" width="100" x="553" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="e6qA8uhxEHSEWFIFtHGd-21" parent="e6qA8uhxEHSEWFIFtHGd-20" style="points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};convertToSvg=0;" value="" vertex="1">
+          <mxGeometry height="226" width="10" x="45" y="56" as="geometry" />
+        </mxCell>
+        <mxCell id="e6qA8uhxEHSEWFIFtHGd-22" edge="1" parent="1" source="e6qA8uhxEHSEWFIFtHGd-15" style="verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;startSize=8;endSize=8;convertToSvg=0;" target="e6qA8uhxEHSEWFIFtHGd-18" value="Request to access site">
+          <mxGeometry relative="1" width="80" as="geometry">
+            <Array as="points">
+              <mxPoint x="262" y="125" />
+            </Array>
+            <mxPoint x="191" y="125" as="sourcePoint" />
+            <mxPoint x="278" y="118" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e6qA8uhxEHSEWFIFtHGd-23" edge="1" parent="1" source="e6qA8uhxEHSEWFIFtHGd-19" style="verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;startSize=8;endSize=8;convertToSvg=0;" target="e6qA8uhxEHSEWFIFtHGd-21" value="Processes user requests">
+          <mxGeometry relative="1" width="80" as="geometry">
+            <Array as="points">
+              <mxPoint x="416" y="155" />
+            </Array>
+            <mxPoint x="381" y="156" as="sourcePoint" />
+            <mxPoint x="461" y="156" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e6qA8uhxEHSEWFIFtHGd-24" edge="1" parent="1" source="e6qA8uhxEHSEWFIFtHGd-17" style="verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;startSize=8;endSize=8;convertToSvg=0;" target="e6qA8uhxEHSEWFIFtHGd-20" value="Sends a flood of traffic">
+          <mxGeometry relative="1" width="80" x="0.3544" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="395" y="197" />
+            </Array>
+            <mxPoint x="278" y="196" as="sourcePoint" />
+            <mxPoint x="358" y="196" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e6qA8uhxEHSEWFIFtHGd-25" edge="1" parent="1" source="e6qA8uhxEHSEWFIFtHGd-21" style="verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;curved=0;rounded=0;fontSize=12;convertToSvg=0;" target="e6qA8uhxEHSEWFIFtHGd-19" value="Slow down/ usable to respond&#xa; due to traffic overload">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="443" y="251" />
+            </Array>
+            <mxPoint x="524" y="241" as="sourcePoint" />
+            <mxPoint x="444" y="241" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e6qA8uhxEHSEWFIFtHGd-26" edge="1" parent="1" source="e6qA8uhxEHSEWFIFtHGd-21" style="verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;curved=0;rounded=0;fontSize=12;convertToSvg=0;" target="e6qA8uhxEHSEWFIFtHGd-15" value="Unable to respond to user request">
+          <mxGeometry relative="1" x="-0.3801" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="388" y="300" />
+            </Array>
+            <mxPoint x="720" y="300" as="sourcePoint" />
+            <mxPoint x="376" y="300" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="WiKBkBSSAbVJB1mYRU6s-1" parent="1" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;convertToSvg=0;svgWhiteSpace=wrap;" value="Botnets&#xa;Network" vertex="1">
+          <mxGeometry height="30" width="60" x="219" y="13" as="geometry" />
+        </mxCell>
+        <mxCell id="WiKBkBSSAbVJB1mYRU6s-2" parent="1" style="text;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;convertToSvg=0;svgWhiteSpace=wrap;" value="User" vertex="1">
+          <mxGeometry height="30" width="60" x="150" y="13" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

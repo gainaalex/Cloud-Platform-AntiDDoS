@@ -10,9 +10,9 @@ import time
 #- WAF_FLOOD_MAX_REQS = 500
 #- WAF_BAN_TIMEOUT = 1
 
-TARGET_URL = "http://127.0.0.1:8080/static/image.jpg"
+TARGET_URL = "http://127.0.0.1:8086/static/image.jpg"
 HOST_HEADER = "edu.tuiasi.ro"
-NUMAR_CERERI = 300
+NUMAR_CERERI = 3000
 
 
 noduri_waf = []
