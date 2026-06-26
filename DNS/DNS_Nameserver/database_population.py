@@ -44,7 +44,7 @@ def populeaza_redis():
 
         db.set("NS:emag.ro.", json.dumps({"type": "NS", "ips": ["ns.mycloud.ro."], "ttl": 120}))
         db.set("NS:mycloud.ro.", json.dumps({"type": "NS", "ips": ["ns.mycloud.ro."], "ttl": 120}))
-        db.set("NS:edu.tuiasi.ro.", json.dumps({"type": "NS", "ips": ["ns.mycloud.ro."], "ttl": 120}))
+        db.set("NS:tuiasi.ro.", json.dumps({"type": "NS", "ips": ["ns.mycloud.ro."], "ttl": 120}))
         db.set("A:ns.mycloud.ro.", json.dumps({"type": "A", "ips": [mycloud_ip], "ttl": 120}))
         db.set("A:vatafu.ro.", json.dumps({"type": "A", "ips": ["20.20.20.21"], "ttl": 10}))
         db.set("A:digi.ro.", json.dumps({"type": "A", "ips": ["80.17.101.33"], "ttl": 10}))

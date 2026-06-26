@@ -19,23 +19,22 @@ db = redis.Redis(host=REDIS_HOST, port=6379, decode_responses=True)
 
 INITIAL_DATA = {
     "edu.tuiasi.ro.": "172.20.0.12:80",
-    "api.mycloud.ro.": "172.20.0.10:80",
-    "magazin.mycloud.ro.": "172.20.0.11:80",
+    "mycloud.ro.": "172.20.0.10:80",
     "emag.ro": "127.121.5.65:80"
 }
 
 
 def seed_mycloud():
-    print("[*I] MyCloud: Initializez datele de baza (Seed)...")
+    print("[I] MyCloud: Initializez datele de baza (Seed)...")
     for domeniu, origin_ip in INITIAL_DATA.items():
         db.sadd("protected_domains", domeniu)
         db.set(f"origin:{domeniu.rstrip('.')}", origin_ip)
-    print("[*I] MyCloud: Seed complet")
+    print("[I] MyCloud: Seed complet")
 
 #Functia de control a inregisrrarilor din MyCloud BD cu privire
 #la adresele domeniilor protejate si POP active
 def control_plane_loop():
-    print("[*I] Control Plane MyCloud running...")
+    print("[I] Control Plane MyCloud running...")
     while True:
         try:
             domenii = db.smembers("protected_domains")
@@ -43,9 +42,11 @@ def control_plane_loop():
             if ips_live:
                 for d in domenii:
                     db.set(f"A:{d}", json.dumps({"type": "A", "ips": ips_live, "ttl": 30}))
+                    db.set(f"A:*.{d}", json.dumps({"type": "A", "ips": ips_live, "ttl": 30}))
             else:
                 for d in domenii:
                     db.delete(f"A:{d}")
+                    db.delete(f"A:*.{d}")
         except Exception:
             pass
         time.sleep(5)
@@ -98,7 +99,7 @@ class MyCloudHandler(http.server.BaseHTTPRequestHandler):
 
         if parsed.path == '/register':
             if 'domain' in query and 'origin' in query:
-                domain = query['domain'][0].lower()
+                domain = query['domain'][0].lower().strip('.')
                 origin = query['origin'][0]
                 domain_ns = domain if domain.endswith('.') else domain + '.'
 
@@ -106,60 +107,90 @@ class MyCloudHandler(http.server.BaseHTTPRequestHandler):
                     self.send_error(403, "Invalid signature")
                     return
 
-                try:
-                    req_url = f"{ROTLD_URL}/delegate_ns?domain={domain_ns}&ns=ns.mycloud.ro."
-                    req = urllib.request.Request(req_url, method='POST')
-                    urllib.request.urlopen(req)
+                #Identificare tip domeniu
+                #licenta.ro (Root Domain)
+                #my.licenta.ro / *.licenta.ro (Subdomain)
+                parti_domeniu = domain.split('.')
+                is_subdomain = len(parti_domeniu) > 2 or domain.startswith('*.')
 
-                    db.sadd("protected_domains", domain_ns)
-                    db.set(f"origin:{domain.rstrip('.')}", origin)
+                if not is_subdomain:
+                    #Daca e un domeniu, apelam ROTLD
+                    try:
+                        req_url = f"{ROTLD_URL}/delegate_ns?domain={domain_ns}&ns=ns.mycloud.ro."
+                        req = urllib.request.Request(req_url, method='POST')
+                        urllib.request.urlopen(req)
 
-                    self.send_response(200)
-                    self.end_headers()
-                    self.wfile.write(f"SUCCESS: {domain} inregistrat in MyCloud NameDomain via API. ROTLD updated.\n".encode())
-                    return
-                except urllib.error.HTTPError as e:
-                    self.send_error(e.code, f"ERR ROTLD: {e.reason}")
-                    return
+                        db.sadd("protected_domains", domain_ns)
+                        print(f"[I] ROOT DOMAIN {domain} delegat in ROTLD si inregistrat in CDN.")
+                    except urllib.error.HTTPError as e:
+                        self.send_error(e.code, f"ERR ROTLD: {e.reason}")
+                        return
+                else:
+                    print(f"[I] SUBDOMENIU {domain} inregistrat exclusiv in MyCloud.")
+
+                #Salvarea rutelor off ramp in mycloud
+                db.set(f"origin:{domain}", origin)
+
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(f"SUCCESS: {domain} mapat catre {origin} pe Off-Ramp.\n".encode())
+                return
 
         elif parsed.path == '/unregister':
             if 'domain' in query and 'original_ip' in query:
-                domain = query['domain'][0].lower()
+                domain = query['domain'][0].lower().strip('.')
                 orig_ip = query['original_ip'][0]
-                domain_ns = domain if domain.endswith('.') else domain + '.'
+                domain_ns = domain + '.'
 
                 if not self.verify_signature(domain, orig_ip, ts_str, client_sig):
                     self.send_error(403, "Invalid signature")
                     return
 
-                saved = db.get(f"origin:{domain.rstrip('.')}")
+                saved = db.get(f"origin:{domain}")
                 if saved != orig_ip:
                     self.send_error(409, "IP Mismatch")
                     return
 
-                try:
-                    req_url = f"{ROTLD_URL}/restore_a?domain={domain_ns}&ip={orig_ip}"
-                    req = urllib.request.Request(req_url, method='POST')
-                    urllib.request.urlopen(req)
+                parti_domeniu = domain.split('.')
+                is_subdomain = len(parti_domeniu) > 2 or domain.startswith('*.')
+                if not is_subdomain:
+                    #Daca e Root, scoatem si din rotld si oprim propagarea adreselor POP la req catre acest domeniu
+                    try:
+                        req_url = f"{ROTLD_URL}/restore_a?domain={domain_ns}&ip={orig_ip}"
+                        req = urllib.request.Request(req_url, method='POST')
+                        urllib.request.urlopen(req)
+                        db.srem("protected_domains", domain_ns)
+                        db.delete(f"A:{domain_ns}")
+                        db.delete(f"A:*.{domain_ns}")
+                        print(f"[I] ROOT DOMAIN {domain} sters din ROTLD.")
 
-                    db.srem("protected_domains", domain_ns)
-                    db.delete(f"A:{domain_ns}")
-                    db.delete(f"origin:{domain.rstrip('.')}")
-
-                    self.send_response(200)
-                    self.end_headers()
-                    self.wfile.write(b"SUCCESS: Domeniu sters in myCloud NameDomain.")
-                    return
-                except urllib.error.HTTPError as e:
-                    self.send_error(e.code, f"ERR ROTLD: {e.reason}")
-                    return
+                        #Stergem si subdomeniile stocate
+                        subdomenii=db.keys(f"origin:*.{domain}")
+                        if subdomenii:
+                            db.delete(*subdomenii)
+                            print(f"[*I] S-au sters {len(subdomenii)} subdomenii pentru {domain}.")
+                    except urllib.error.HTTPError as e:
+                        self.send_error(e.code, f"ERR ROTLD: {e.reason}")
+                        return
+                else:
+                    print(f"[I] SUBDOMENIU {domain} sters din MyCloud.")
+                #Stergem ruta off ramp
+                db.delete(f"origin:{domain}")
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"SUCCESS: Domeniu sters din MyCloud.")
+                return
 
         self.send_error(400, "Bad Request")
 
 
+class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+
 if __name__ == "__main__":
     seed_mycloud()
     threading.Thread(target=control_plane_loop, daemon=True).start()
-    server = socketserver.TCPServer(("0.0.0.0", PORT), MyCloudHandler)
+    server = ThreadedTCPServer(("0.0.0.0", PORT), MyCloudHandler)
     print(f"[I] MyCloud API pornit pe portul {PORT}")
     server.serve_forever()

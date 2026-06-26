@@ -9,7 +9,7 @@ import random
 
 matplotlib.use('TkAgg')
 
-# --- CONFIGURATIE PLATFORMA ---
+# Config Data ---
 DNS_IP = "127.0.0.1"
 DNS_PORT = 5333
 TARGET_DOMAIN = "edu.tuiasi.ro"
@@ -18,13 +18,13 @@ TTL_TARGET=5
 DURATA_SCENARIU = 25
 WORKERS = 40
 
-# --- STRUCTURI DE COLECTARE DATE ---
+# Stats
 statistici = {
     "DNS": {"cerute": 0, "rezolvate": 0, "blocate_timeout": 0},
     "WAF": defaultdict(lambda: {"CLEAN": 0, "SQLI": 0, "XSS": 0, "FLOOD": 0}),
     "OFF_RAMP": {"CDN_HIT": 0, "ORIGIN_MISS": 0, "ORIGIN_LOAD": 0}
 }
-istoric_timp_origin = []  # Colectam cand au fost atinse serverele origin
+istoric_timp_origin = []  #Colectam momentele cand au fost atinse serverele origin
 
 
 # --- 1. FUNCTII DE INTEROGARE DNS ---
@@ -46,7 +46,7 @@ def rezolva_dns():
 def trimite_cerere_http(ip_pop, tip_atac="CLEAN", timp_start=0):
     # Setam fizic adresa laptopului si portul pe care ai deschis POP-ul Iasi (sau pune 8086 pt Timis)
     HOST_IP = "127.0.0.1"
-    HOST_PORT = "8086"
+    HOST_PORT = "8088"
 
     url = f"http://{HOST_IP}:{HOST_PORT}{TARGET_PATH}"
     headers = {"Host": TARGET_DOMAIN, "User-Agent": "E2E-Tester"}

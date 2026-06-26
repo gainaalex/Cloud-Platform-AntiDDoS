@@ -7,9 +7,8 @@ REDIS_HOST = os.getenv('REDIS_HOST', '127.0.0.1')
 db = redis.Redis(host=REDIS_HOST, port=6379, decode_responses=True)
 
 DOMENII_PROTEJATE = [
-    "edu.tuiasi.ro.",
-    "api.mycloud.ro.",
-    "magazin.mycloud.ro.",
+    "tuiasi.ro.",
+    "mycloud.ro.",
     "emag.ro."
 ]
 
@@ -29,6 +28,8 @@ def actualizeaza_rute_dns():
                         "ips": ips_live,
                         "ttl": 30
                     }
+                    db.set(f"A:{domeniu}", json.dumps(date_dns))
+                    domeniu="*."+domeniu
                     db.set(f"A:{domeniu}", json.dumps(date_dns))
             else:
                 for domeniu in DOMENII_PROTEJATE:

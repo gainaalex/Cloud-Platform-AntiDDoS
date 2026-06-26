@@ -35,6 +35,17 @@ def proceseaza_cererea_dns(data, addr, sock):
 
         if qtype == QTYPE.A:
             record_a_json = db.get(f"A:{qname}")
+
+            #Logica de wildcard pentru a redirectiona si subdomeniile
+            if not record_a_json:
+                parti = qname.split('.')
+                for i in range(1, len(parti) - 2):
+                    wildcard_cautat = "*." + ".".join(parti[i:])
+                    record_a_json = db.get(f"A:{wildcard_cautat}")
+                    if record_a_json:
+                        print(f"[*I] {NS_NAME} -> Wildcard Match gasit: {wildcard_cautat}")
+                        break
+
             if record_a_json:
                 reply.header.aa = 1
                 record = json.loads(record_a_json)

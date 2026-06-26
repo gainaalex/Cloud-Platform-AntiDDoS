@@ -4,9 +4,12 @@ import time
 import urllib.parse
 
 API_KEY = "micunealta-secreta"
+PORT = 5050
 DOMAIN = "licenta.ro"
 ORIGIN_IP = "89.89.89.89"
-PORT = 5050
+
+# DOMAIN = "www.tuiasi.ro"
+# ORIGIN_IP = "10.81.9.67"
 
 timestamp = str(int(time.time()))
 

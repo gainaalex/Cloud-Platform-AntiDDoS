@@ -4,31 +4,31 @@ curl -v http://127.0.0.1:8081/static/image.jpg
 #testare server origin cu pop:
 
 #caz 1
-curl -v -H "Host: edu.tuiasi.ro" http://127.0.0.1:8080/static/image.jpg
+curl -v -H "Host: edu.tuiasi.ro" http://127.0.0.1:8086/static/image.jpg
 # prima data va da cdn miss, dupa hit
 
 #testare waf:
-curl -v -H "Host: edu.tuiasi.ro" "http://127.0.0.1:8080/static/image.jpg?query=<script>"
+curl -v -H "Host: edu.tuiasi.ro" "http://127.0.0.1:8086/static/image.jpg?query=<script>"
 
 #testare ddos:
 ruleaza test_flood.oy
 
 #caz 2: Validare ETag / Short TTL
-curl -i -H "Host: edu.tuiasi.ro" http://127.0.0.1:8080/api/data
+curl -i -H "Host: edu.tuiasi.ro" http://127.0.0.1:8086/api/data
 revalidare (stai 10 secunde inainte de a rula iar, pentru a expira max-age=10):
-curl -i -H "Host: edu.tuiasi.ro" http://127.0.0.1:8080/api/data
+curl -i -H "Host: edu.tuiasi.ro" http://127.0.0.1:8086/api/data
 
 #caz 3 ala sensitive:Protectia datelor sensibile (no-store)
-curl -i -H "Host: edu.tuiasi.ro" http://127.0.0.1:8080/private/dashboard
+curl -i -H "Host: edu.tuiasi.ro" http://127.0.0.1:8086/private/dashboard
 Nu ar trebui sa stocheze nimic cdn ul
 
 #caz 4 validare fortata (must-revalidate)
-curl -i -H "Host: edu.tuiasi.ro" http://127.0.0.1:8080/api/strict
+curl -i -H "Host: edu.tuiasi.ro" http://127.0.0.1:8086/api/strict
 rulezi iar rapid (pana sa se schimbe continutul site ului) ->HIT
 dupa o perioada mai lunga va trimite etag si va cauta sa revalideze, nu sa faca din nou cerere de
 
 
 #caz 5:
-curl -i -H "Host: edu.tuiasi.ro" http://127.0.0.1:8080/api/data
-curl -i -X POST -H "Host: edu.tuiasi.ro" http://127.0.0.1:8080/api/data
+curl -i -H "Host: edu.tuiasi.ro" http://127.0.0.1:8086/api/data
+curl -i -X POST -H "Host: edu.tuiasi.ro" http://127.0.0.1:8086/api/data
 
