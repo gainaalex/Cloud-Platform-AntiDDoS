@@ -7,7 +7,7 @@ const inputTimestamp = document.getElementById('timestamp');
 const inputSignature = document.getElementById('signature');
 const logBox = document.getElementById('log-box');
 
-// Functie utilitara pentru loguri in UI
+//Functia pentru loguri in UI ul site ului
 function log(msg, type = 'info') {
     const time = new Date().toLocaleTimeString();
     let colorClass = 'log-info';
@@ -19,7 +19,7 @@ function log(msg, type = 'info') {
     logBox.scrollTop = logBox.scrollHeight;
 }
 
-// Handler inregistrare POP
+//Handler inregistrare domeniu
 document.getElementById('btn-register').addEventListener('click', async () => {
     const domain = inputDomain.value.trim().toLowerCase();
     const origin = inputOrigin.value.trim();
@@ -27,14 +27,14 @@ document.getElementById('btn-register').addEventListener('click', async () => {
     const sig = inputSignature.value.trim();
 
     if (!domain || !origin || !ts || !sig) {
-        return log("[*Err]: Toate campurile sunt obligatorii", 'error');
+        return log("[E]: Toate campurile sunt obligatorii", 'error');
     }
 
-    // Trimitem URL-ul cu encode pe origin pentru a proteja porturile (ex: 8080)
+    //Trimitem URL-ul cu encode
     const encodedOrigin = encodeURIComponent(origin);
     const url = `${API_URL}/register?domain=${domain}&origin=${encodedOrigin}&t=${ts}&sig=${sig}`;
 
-    log(`[*I]: Trimitem cerere de inregistrare pentru ${domain}...`, 'info');
+    log(`[I]: Trimitem cerere de inregistrare pentru ${domain}...`, 'info');
 
     try {
         const response = await fetch(url, { method: 'POST' });
@@ -50,7 +50,7 @@ document.getElementById('btn-register').addEventListener('click', async () => {
     }
 });
 
-// Handler stergere POP
+//Handler stergere POP
 document.getElementById('btn-unregister').addEventListener('click', async () => {
     const domain = inputDomain.value.trim().toLowerCase();
     const origin = inputOrigin.value.trim();
@@ -58,13 +58,13 @@ document.getElementById('btn-unregister').addEventListener('click', async () => 
     const sig = inputSignature.value.trim();
 
     if (!domain || !origin || !ts || !sig) {
-        return log("[*Err]: Specificati domeniul, origin-ul si token-ul pentru a sterge.", 'error');
+        return log("[Err]: Specificati domeniul, origin-ul si token-ul pentru a sterge.", 'error');
     }
 
     const encodedOrigin = encodeURIComponent(origin);
     const url = `${API_URL}/unregister?domain=${domain}&original_ip=${encodedOrigin}&t=${ts}&sig=${sig}`;
 
-    log(`Se solicita eliminarea nodului pentru ${domain}...`, 'info');
+    log(`Se solicita eliminarea domeniului pentru ${domain}...`, 'info');
 
     try {
         const response = await fetch(url, { method: 'POST' });
@@ -80,4 +80,4 @@ document.getElementById('btn-unregister').addEventListener('click', async () => 
     }
 });
 
-log("MyCloud command logs", 'info');
+log("Portalul MyCloud este online.", 'info');

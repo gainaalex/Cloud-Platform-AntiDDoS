@@ -1,11 +1,10 @@
-// Ruta configurata in proxy-ul Nginx
 const API_URL = "/api";
 
 const inputDomain = document.getElementById('domain');
 const inputIp = document.getElementById('ip');
 const logBox = document.getElementById('log-box');
 
-// Functie pentru afisarea mesajelor in UI
+//Functia pentru print logs in UI ul site ului
 function log(msg, type = 'info') {
     const time = new Date().toLocaleTimeString();
     let colorClass = 'log-info';
@@ -17,7 +16,6 @@ function log(msg, type = 'info') {
     logBox.scrollTop = logBox.scrollHeight;
 }
 
-// Apelam endpoint-ul ROTLD pentru a cumpara un domeniu
 document.getElementById('btn-buy').addEventListener('click', async () => {
     const domain = inputDomain.value.trim().toLowerCase();
     const ip = inputIp.value.trim();
@@ -47,4 +45,4 @@ document.getElementById('btn-buy').addEventListener('click', async () => {
     }
 });
 
-log("Portalul ROTLD este online. Astept inregistrari...", 'info');
+log("Portalul ROTLD este online.", 'info');

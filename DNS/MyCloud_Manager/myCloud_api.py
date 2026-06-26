@@ -32,7 +32,8 @@ def seed_mycloud():
         db.set(f"origin:{domeniu.rstrip('.')}", origin_ip)
     print("[*I] MyCloud: Seed complet")
 
-
+#Functia de control a inregisrrarilor din MyCloud BD cu privire
+#la adresele domeniilor protejate si POP active
 def control_plane_loop():
     print("[*I] Control Plane MyCloud running...")
     while True:
@@ -55,6 +56,7 @@ class MyCloudHandler(http.server.BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Origin', '*')
         super().end_headers()
 
+    #Functia de autentificare se face pe baza unui timestamp si a unei semnaturi generate
     def verify_signature(self, domain, ip, ts_str, client_sig):
         try:
             req_time = int(ts_str)
