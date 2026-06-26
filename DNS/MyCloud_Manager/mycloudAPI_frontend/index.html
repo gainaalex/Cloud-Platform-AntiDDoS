@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyCloud CDN Control Plane</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>MyCloud Security Dashboard</h1>
+            <p>Gestiune zone DNS si rutare on ramp / off ramp</p>
+        </header>
+
+        <div class="card">
+            <div class="input-group">
+                <label for="domain">Domeniu)</label>
+                <input type="text" id="domain" placeholder="ex: api.mycloud.ro">
+            </div>
+
+            <div class="input-group">
+                <label for="origin_ip">IP Origin Server (Ruta Off Ramp)</label>
+                <input type="text" id="origin_ip" placeholder="ex: 172.20.0.10">
+            </div>
+
+            <div style="border-top: 1px dashed #444; margin: 20px 0;"></div>
+            <p style="font-size: 12px; color: #888; margin-bottom: 15px;">Date Autorizare:</p>
+
+            <div class="input-group">
+                <label for="timestamp">Timestamp (t)</label>
+                <input type="text" id="timestamp" placeholder="ex: 1715000000">
+            </div>
+
+            <div class="input-group">
+                <label for="signature">Semnatura Criptografica (sig)</label>
+                <input type="text" id="signature" placeholder="ex: a1b2c3d4...">
+            </div>
+
+            <div class="buttons">
+                <button id="btn-register" class="btn-primary">Inregistreaza Domeniul</button>
+                <button id="btn-unregister" class="btn-danger">Elimina Domeniul</button>
+            </div>
+        </div>
+
+        <div class="terminal">
+            <div class="terminal-header">System Logs</div>
+            <div id="log-box"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

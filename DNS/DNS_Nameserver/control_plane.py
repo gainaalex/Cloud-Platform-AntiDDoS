@@ -13,7 +13,7 @@ DOMENII_PROTEJATE = [
     "emag.ro."
 ]
 
-
+#Logica de monitorizare si update a POP-uilor active din retea
 def actualizeaza_rute_dns():
     print("[*I] Control Plane pornit. Monitorizez POP-urile active...")
 

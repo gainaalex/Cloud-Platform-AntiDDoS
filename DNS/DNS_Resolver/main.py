@@ -7,8 +7,6 @@ from dnslib import DNSRecord, QTYPE, RR, A, RCODE
 from dotenv import load_dotenv
 import socketserver
 
-# TODO: ma ocup de port naming conventions mai tarziu
-
 load_dotenv()
 
 # Parametrii DNS flood prevention
@@ -33,7 +31,6 @@ REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
 db = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 # in redis, informatiile de tip A despre domeniul x sunt stocate A:x
 #                           tip NS sunt stocate: NS:x
-#                           TODO:tip CNAME sunt stocate: CNAME:x
 
 
 ROOT_HOSTNAME = os.getenv('ROOT_HOSTNAME', 'dns_root')
@@ -45,15 +42,11 @@ except Exception:
 SBelt = {"root": {"ips": [ROOT_IPS]}}
 
 
-
-
-# aici verificam si aplicam load balancing pe lista de ip de tip A, nu CNAME/NS etc
+#Aici verificam si aplicam load balancing pe lista de ip de tip A, nu CNAME/NS etc
 def aplica_load_balancing(qname):
-    # load balancing folosit pentru ditribuirea cererilor intre POP returnate de Name Server
-    # extrage ttl ul curent ramas in redis pentru a nu il reseta cand salvam rotirea
-
-
+    #Load balancing folosit pentru ditribuirea cererilor intre POP returnate de Name Server
     cache_key = f"A:{qname.lower()}"
+    #Extrage ttl ul curent ramas in redis pentru a nu il reseta cand salvam rotirea
     ttl_ramas = db.ttl(cache_key)
 
     if ttl_ramas <= 0:
@@ -68,7 +61,7 @@ def aplica_load_balancing(qname):
                 rotatie = random.randint(0, len(pool) - 1)
                 pool_rotit = pool[rotatie:] + pool[:rotatie]
 
-                # returnam lista rotita si ttl ul pe care trebuie sa il dam clientului
+                #Returnam lista rotita si ttl ul pe care trebuie sa il dam clientului
                 return pool_rotit, ttl_ramas
 
     return None, 0
@@ -79,13 +72,14 @@ def get_nearest_ancestor(qname):
 
     qname = qname.lower()
 
-    # verific daca un ancestor a mai fost cautat si s-a primit o referinta a unui NS
+    #Verific daca un ancestor a mai fost cautat si s-a primit o referinta a unui NS
     labels = [l for l in qname.split('.') if l]
     search_names = [".".join(labels[i:]) + "." for i in range(len(labels))]
     search_names.append(".")
 
+    #Cautam NS urile asociate
     for name in search_names:
-        cache_key = f"NS:{name}" # cautam NS urile asociate
+        cache_key = f"NS:{name}"
         record_json = db.get(cache_key)
         record_ttl=db.ttl(cache_key)
         if record_json:
@@ -103,18 +97,17 @@ def get_nearest_ancestor(qname):
 def interogare_iterativa(qname):
     nume_cautat = qname.lower()
 
-
     if db.get(f"NXDOMAIN:{nume_cautat}"):
         print(f"[I]: ~CACHE HIT~ {RESOLVER_NAME}: NXDOMAIN din cache pt {qname}")
         return None, 0
 
-    # Case 1: Verific cache intern in Redis pt a verfica existenta adresei cerute
+    #Case 1: Verific cache intern in Redis pt a verfica existenta adresei cerute
     pool_a, ttl_a = aplica_load_balancing(nume_cautat)
     if pool_a:
         print(f"[I]: ~CACHE HIT~ {RESOLVER_NAME}: HIT din resolver cache pt {qname}")
         return pool_a, ttl_a
 
-    # Case 2 - Cache miss: Creez SLIST cu rute ce ma pot duce la adresa ceruta
+    #Case 2: Cache miss: Creez SLIST cu rute ce ma pot duce la adresa ceruta
     SLIST = get_nearest_ancestor(nume_cautat)
 
     MAX_HOPS = 10
@@ -132,12 +125,12 @@ def interogare_iterativa(qname):
             pachet_raspuns = cerere.send(target_ip, 53, timeout=2.0)
             raspuns = DNSRecord.parse(pachet_raspuns)
 
-            # CASE 1: Raspuns autoritar (<=> AA=1)
+            #CASE 1: Raspuns autoritar (<=> AA=1)
             if getattr(raspuns.header, 'aa') == 1:
                 un_ip_salvat = False
                 ttlMin = raspuns.rr[0].ttl if raspuns.rr else None  # cautam sa vedem daca nu cumva aceasta adresa e una sensitive si care are ttl f mic, prea mic pt a mai avea sens sa o stocam
 
-                # Cazul cand e ttl mic (<=1): trimitem direct datele fara sa mai accesam BD
+                #Cazul cand e ttl mic (<=1): trimitem direct datele fara sa mai accesam BD
                 if ttlMin is not None and ttlMin <= 1:
                     ip_imediate = [str(rr.rdata) for rr in raspuns.rr if rr.rtype == QTYPE.A]
                     if ip_imediate:
@@ -148,7 +141,7 @@ def interogare_iterativa(qname):
                         db.set(f"NXDOMAIN:{nume_cautat}", 1, ex=NXDOMAIN_CACHE_TTL)
                         return None, 0
 
-                # cazul obisnuit: stocam in bd datele cu ttl mai mare de 1
+                #Cazul default: stocam in BD datele cu ttl mai mare de 1
                 adrese_colectate = []
                 nume_domeniu=None
                 for rr in raspuns.rr:
@@ -168,13 +161,13 @@ def interogare_iterativa(qname):
                 if un_ip_salvat:
                     return aplica_load_balancing(qname)
 
-                # daca am ajuns aici inseamna ca e NXDOMAIN
+                #Daca algoritmul a ajuns in acest punct inseamna ca e NXDOMAIN
                 print(f"[I]: [FAIL] Received authoritar answer : no adresses (posibil NXDOMAIN)")
 
                 db.set(f"NXDOMAIN:{nume_cautat}", 1, ex=NXDOMAIN_CACHE_TTL)
                 return None, 0
 
-            # CASE 2: Referral
+            #CASE 2: Referral
             elif len(raspuns.auth) > 0:
                 new_slist = []
                 ns_names = [str(rr.rdata).lower() for rr in raspuns.auth if rr.rtype == QTYPE.NS]
@@ -184,7 +177,7 @@ def interogare_iterativa(qname):
 
                 zona_delegata = str(raspuns.auth[0].rname).lower()
 
-                # Looking for Glue Records
+                #Cautam printre Glue Records
                 for ns in ns_names:
                     for ar in raspuns.ar:
                         if str(ar.rname).lower() == ns and ar.rtype == QTYPE.A:
@@ -195,7 +188,7 @@ def interogare_iterativa(qname):
 
                     ttl_delegare = raspuns.auth[0].ttl if raspuns.auth else 300
 
-                    # stocam delegarea in BD cu TTL ul aferent
+                    #Stocam delegarea in BD cu TTL ul aferent
                     db.set(f"NS:{zona_delegata}", json.dumps({'type': 'NS', 'ips': new_slist}), ex=ttl_delegare)
 
                     print(f"[I]: REFFERAL Delegat catre {zona_delegata} (TTL: {ttl_delegare}s). SLIST actualizat. Reiterez...")
@@ -205,12 +198,12 @@ def interogare_iterativa(qname):
                     SLIST.pop(0)
                     continue
 
-            # CASE 3: adresa invalida sau nu exista in sistem => trecem la urmatorul name domain in ierarhie
+            #CASE 3: adresa invalida sau nu exista in sistem => trecem la urmatorul name domain in ierarhie
             else:
                 SLIST.pop(0)
 
         except Exception as e:
-            print(f"[*EROARE] Comunicarea a esuat la HOP {hops}: {e}")
+            print(f"[EROARE] Comunicarea a esuat la HOP {hops}: {e}")
             SLIST.pop(0)
 
     print(f"[EROARE] {RESOLVER_NAME} -> Resolver failed. (Prea multe HOP-uri sau SLIST gol).")
@@ -225,14 +218,14 @@ class ThreadedUDPRequestHandler(socketserver.BaseRequestHandler):
         client_ip = client_addr[0]
 
         try:
-
+            #Accesam BD pt a verifica daca cel ce a facut cererea face parte dintr un atat volumetric pe L3/4
             if (db.get(f"ban:{client_ip}")):
                 print(f"[I]: [DDOS PREVENTION] IP: {client_ip} banned")
                 return
 
             client_req_id = f"req:{client_ip}"
 
-            #cu pipeline pt a unii cererile atomice , pt a eficientiza timpul petrecut accesand bd ul
+            #Cu pipeline pt a unii cererile atomice ,pt a eficientiza timpul petrecut accesand bd ul
             pipe = db.pipeline()
             pipe.incr(client_req_id)#nr_cereri_client
             pipe.ttl(client_req_id)#ttl_curent
@@ -250,14 +243,14 @@ class ThreadedUDPRequestHandler(socketserver.BaseRequestHandler):
                 db.delete(client_req_id)
                 return
 
-            # dns resolver logic
+            #DNS resolver logic
             request = DNSRecord.parse(data)
             qname = str(request.q.qname)
             qtype = request.q.qtype
             print(f"\n==============================================")
             print(f"[I:] [REQUEST] De la {client_addr} pt -> {qname}")
 
-            #PT DNS AMPLIFICATION
+            #Logica preventie DNS Amplification
             if qtype == 255:  # 255 este QTYPE.ANY
                 print(f"[W]: [DNS AMPLIFICATION DETECTED] Cerere ANY blocata de la {client_addr}. Trimitem REFUSED.")
                 reply = request.reply()
@@ -269,7 +262,7 @@ class ThreadedUDPRequestHandler(socketserver.BaseRequestHandler):
 
             reply = request.reply()
             if ips_rezolvate:
-                # adaugam fiecare IP din lista in pachetul final cu ttl ul primit
+                #Adaugam fiecare IP in raspuns
                 for ip in ips_rezolvate:
                     reply.add_answer(RR(qname, QTYPE.A, rdata=A(ip), ttl=ttl_curent))
                 print(f"[I]: [RESPONSE] Trimit catre {client_addr} -> {ips_rezolvate} cu TTL {ttl_curent}s")
@@ -282,18 +275,18 @@ class ThreadedUDPRequestHandler(socketserver.BaseRequestHandler):
             size_resp = len(pachet_final)
 
 
-            ################ E REDUNDANT PT CA EU LUCREZ DOAR CU CERERI DE TIP A SI NS , ASTA AR PUTEA FI O CONTINUARE
-            # EVENTUALA CAND RESOLVERUL VA ALEA SI LOGICA PT INREGISTARRI TXT SAU SEMNATURI DNSSEC
+            #E REDUNDANT PT CA MOMENTAN GESTIONEAZA DOAR CERERI DE TIP A SI NS , ASTA AR PUTEA FI O CONTINUARE
+            #EVENTUALA CAND RESOLVERUL VA AVEA SI LOGICA PT INREGISTARRI TXT SAU SEMNATURI DNSSEC
 
-            # # PT DNS AMPLIFICATION
-            # # daca raspunsul e mult mai mare decat cererea (Asimetrie de amplificare)
-            # # si rata de cereri de la acest IP e suspecta, activam flag-ul TC (truncated)
-            # if size_resp > (size_req * 5) and nr_cereri_client > (DNS_FLOOD_MAX_REQS / 2):
-            #     print(f"[W]: [DNS AMPLIFICATION DETECTED] Detectat raspuns asimetric ({size_resp} bytes). Trunchiem pachetul.")
-            #     reply_trunchiat = request.reply()
-            #     reply_trunchiat.header.tc = 1  #conform RFC 1035
-            #     socket_curent.sendto(reply_trunchiat.pack(), client_addr)
-            #     return
+            #PT DNS AMPLIFICATION
+            #Daca raspunsul e mult mai mare decat cererea (Asimetrie de amplificare)
+            #si rata de cereri de la acest IP e suspecta, activam flag-ul TC (truncated)
+            if size_resp > (size_req * 5) and nr_cereri_client > (DNS_FLOOD_MAX_REQS / 2):
+                print(f"[W]: [DNS AMPLIFICATION DETECTED] Detectat raspuns asimetric ({size_resp} bytes). Trunchiem pachetul.")
+                reply_trunchiat = request.reply()
+                reply_trunchiat.header.tc = 1  #conform RFC 1035
+                socket_curent.sendto(reply_trunchiat.pack(), client_addr)
+                return
 
             socket_curent.sendto(reply.pack(), client_addr)
 

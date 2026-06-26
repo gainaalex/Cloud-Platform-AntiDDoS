@@ -11,9 +11,6 @@ PORT = int(os.getenv('ROTLD_PORT', 8080))
 
 db = redis.Redis(host=REDIS_HOST, port=6379, decode_responses=True)
 
-import socket
-
-
 class ROTLDHandler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -76,5 +73,5 @@ class ROTLDHandler(http.server.BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     server = socketserver.TCPServer(("0.0.0.0", PORT), ROTLDHandler)
-    print(f"[*I] ROTLD API pornit pe portul {PORT}")
+    print(f"[I] ROTLD API pornit pe portul {PORT}")
     server.serve_forever()

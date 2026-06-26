@@ -105,9 +105,9 @@ services:
       - REDIS_HOST=redis_resolver
       - REDIS_PORT=6379
       - DNS_FLOOD_WINDOW=1
-      - DNS_FLOOD_MAX_REQS=80 #pune 800000
-      - DNS_BAN_TIMEOUT=20 #pune macar 15
-      - NXDOMAIN_CACHE_TTL=10 #pune 10
+      - DNS_FLOOD_MAX_REQS=80
+      - DNS_BAN_TIMEOUT=80
+      - NXDOMAIN_CACHE_TTL=10
     ports:
       - "5333:5333/udp"
     networks:
@@ -143,3 +143,28 @@ services:
         - rotld_api
       networks:
         - dns_network
+
+  mycloud_frontend:
+        build: ./MyCloud_Manager/mycloudAPI_frontend
+        ports:
+          - "9000:9000"
+        environment:
+          - MYCLOUD_API_HOST=mycloud_api
+          - MYCLOUD_API_PORT=5000
+        depends_on:
+          - mycloud_api
+        networks:
+          - mycloud_global_net
+          - dns_network
+
+  rotld_frontend:
+    build: ./MyCloud_Manager/rotldAPI_frontend
+    ports:
+      - "9001:9001"
+    environment:
+      - ROTLD_API_HOST=rotld_api
+      - ROTLD_API_PORT=8080
+    depends_on:
+      - rotld_api
+    networks:
+      - dns_network

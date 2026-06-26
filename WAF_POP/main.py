@@ -7,12 +7,12 @@ import os
 import redis
 import socket
 
-# acest POP e un load balancer ce va distribui catre endpoints (serverele de WAF)
 LB_IP = os.getenv('POP_IP', '0.0.0.0')
 LB_PORT = int(os.getenv('POP_PORT', 8080))
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 GLOBAL_DNS_REDIS = os.getenv('GLOBAL_DNS_REDIS', 'redis_mycloud')
 
+#Metoda folosita pentru determinarea ip-ului intern alocat de docker
 def get_my_global_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
@@ -24,6 +24,7 @@ def get_my_global_ip():
         s.close()
     return my_ip
 
+#Metoda de auto-inregistare POP activ la nivel DNS
 def send_heartbeat_to_dns():
     try:
         dns_db = redis.Redis(host=GLOBAL_DNS_REDIS, port=6379, decode_responses=True)
@@ -51,6 +52,7 @@ class LoadBalancerCore:
         self.hc_thread = threading.Thread(target=self.health_check, daemon=True)
         self.hc_thread.start()
 
+    #Functia asincrona de monitorizare a nodurilor WAF healthy
     def health_check(self):
         while True:
             try:
@@ -63,7 +65,7 @@ class LoadBalancerCore:
             healthy_endpoints = []
             unhealthy_endpoints = []
 
-            # facem health check pe cele gasite
+            #Facem health check pe cele gasite
             for endpoint in self.endpoints:
                 try:
                     url = f"{endpoint}/health"
@@ -78,12 +80,12 @@ class LoadBalancerCore:
 
             with self.lock:
                 new_list = []
-                # pt a pastra totusi ordinea in care a ajuns ca urmare a round robin executat pe parcurs
+                #Pentru a pastra totusi ordinea in care a ajuns ca urmare a round robin executat pe parcurs
                 for endpoint in self.active_endpoints:
                     if endpoint in healthy_endpoints:
                         new_list.append(endpoint)
 
-                # adaug si nodurile care s-au reparat intre timp
+                #Adaug si nodurile care s-au reparat intre timp
                 for endpoint in self.endpoints:
                     if endpoint not in new_list and endpoint not in unhealthy_endpoints:
                         new_list.append(endpoint)
@@ -96,7 +98,7 @@ class LoadBalancerCore:
             time.sleep(5)
 
     def get_next_endpoint(self):
-        # round robin pt distributia sarcinilor intre WAF urile **active**
+        #Round robin pt distributia sarcinilor intre WAF urile **active**
         with self.lock:
             if not self.active_endpoints:
                 return None
@@ -111,6 +113,12 @@ lb_core = LoadBalancerCore()
 
 
 class ProxyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
+    #Impotriva atacurilor pe TCP Slowloris impunem o limita de 5 secunde
+    #per request inainte de a inchide conexiunea
+    def setup(self):
+        self.request.settimeout(5)
+        super().setup()
+
     def do_GET(self):
         self.handle_request("GET")
 
@@ -118,7 +126,7 @@ class ProxyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         self.handle_request("POST")
 
     def handle_request(self, method):
-        client_ip = self.client_address[0]#ip client
+        client_ip = self.client_address[0]
 
         target_endpoint = lb_core.get_next_endpoint()
         print("\n--------------------new transaction-----------------------------------\n")
@@ -141,8 +149,6 @@ class ProxyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             req = urllib.request.Request(target_url,data=body_data, method=method)
 
             for key, value in self.headers.items():
-                #if key.lower() == "host":
-                #    continue
                 req.add_header(key, value)
 
             req.add_header('X-Forwarded-For', client_ip)
@@ -174,7 +180,7 @@ class ProxyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             print(f"[*W]:[LB-ERROR] Endpoint-ul {target_endpoint} nu raspunde: {e.reason}")
             self.send_error(502, "INTERNAL ERR:WAF endpoint communication failed.")
 
-
+#Pnetru a asigura multithreading la nivelul cererilor procesare pe POP
 class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     daemon_threads = True
     allow_reuse_address = True

@@ -20,7 +20,8 @@ db = redis.Redis(host=REDIS_HOST, port=6379, decode_responses=True)
 INITIAL_DATA = {
     "edu.tuiasi.ro.": "172.20.0.12:80",
     "api.mycloud.ro.": "172.20.0.10:80",
-    "magazin.mycloud.ro.": "172.20.0.11:80"
+    "magazin.mycloud.ro.": "172.20.0.11:80",
+    "emag.ro": "127.121.5.65:80"
 }
 
 
@@ -50,14 +51,36 @@ def control_plane_loop():
 
 
 class MyCloudHandler(http.server.BaseHTTPRequestHandler):
+    def end_headers(self):
+        self.send_header('Access-Control-Allow-Origin', '*')
+        super().end_headers()
+
     def verify_signature(self, domain, ip, ts_str, client_sig):
         try:
             req_time = int(ts_str)
-            if abs(int(time.time()) - req_time) > 60:
+            timp_container = int(time.time())
+            diferenta = abs(timp_container - req_time)
+
+            print(f"[DEBUG HMAC] Browser Time: {req_time} | Docker Time: {timp_container} | Diff: {diferenta}s")
+
+            if diferenta > 3600:
+                print("[E] Semnatura respinsa: Cererea e prea veche sau ceasul e desincronizat masiv.")
                 return False
-            expected = hmac.new(API_KEY.encode(), f"{domain}:{ip}:{ts_str}".encode(), hashlib.sha256).hexdigest()
-            return hmac.compare_digest(expected, client_sig)
-        except:
+
+            payload = f"{domain}:{ip}:{ts_str}"
+            expected = hmac.new(API_KEY.encode(), payload.encode(), hashlib.sha256).hexdigest()
+
+            if not hmac.compare_digest(expected, client_sig):
+                print(f"[E] Semnatura respinsa: HMAC Mismatch!")
+                print(f"     Asteptat (Python): {expected}")
+                print(f"     Primit (JS):       {client_sig}")
+                return False
+
+            print("[I] Semnatura valida. Tranzactie aprobata.")
+            return True
+
+        except Exception as e:
+            print(f"[E] Eroare fatala in validare HMAC: {e}")
             return False
 
     def do_POST(self):
@@ -136,5 +159,5 @@ if __name__ == "__main__":
     seed_mycloud()
     threading.Thread(target=control_plane_loop, daemon=True).start()
     server = socketserver.TCPServer(("0.0.0.0", PORT), MyCloudHandler)
-    print(f"[*I] MyCloud API pornit pe portul {PORT}")
+    print(f"[I] MyCloud API pornit pe portul {PORT}")
     server.serve_forever()

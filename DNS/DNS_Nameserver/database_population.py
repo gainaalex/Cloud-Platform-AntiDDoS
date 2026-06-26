@@ -12,6 +12,7 @@ db = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
 NS_ROLE = os.getenv('NS_ROLE', 'MYCLOUD')
 
+#Folosit pentru a gasi adresa IP alocata la nivelul retelei Docker
 def resolve_docker_host(hostname):
     try:
         return socket.gethostbyname(hostname)
@@ -19,6 +20,11 @@ def resolve_docker_host(hostname):
         print(f"[E:] Nu am putut rezolva host-ul {hostname}: {e}")
         return "127.0.0.1"
 
+
+#Logica de populare a bazei de date cu domenii
+
+#Aici e logica doar pentru Root si ROTLD, control_plane se
+#ocupa de popularea si transmiterea domeniilor din MyCloud
 def populeaza_redis():
     db.flushdb()
 
@@ -58,6 +64,3 @@ def get_all_data():
             valoare = json.loads(valoare_json)
             print(f"[I:] {cheie} -> IP/NS: {valoare['ips']} | TTL: {valoare['ttl']} | Type: {valoare['type']}")
     print("=" * 40 + "\n")
-
-# if __name__ == "__main__":
-#     populeaza_redis()

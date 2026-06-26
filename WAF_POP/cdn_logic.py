@@ -3,7 +3,7 @@ import json
 import time
 from email.utils import parsedate_to_datetime
 
-
+#Logica de caching conform standardului rfc 9111 si rfc 5861
 class CDNManager:
     def __init__(self, redis_client=None,redis_host='localhost', redis_port=6379):
         if redis_client:
@@ -11,7 +11,7 @@ class CDNManager:
         else:
             self.r = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
 
-    # REQ: Parser full Cache-Control (RFC 9111 & 5861)
+    #Parsam headerele din Cache-Control (RFC 9111 & 5861)
     def parse_cache_control(self, cc_header):
         directives = {
             'max-age': None, 's-maxage': None,
@@ -38,14 +38,14 @@ class CDNManager:
                 elif p in directives:
                     directives[p] = True
 
-        #REQ/RFC: must-revalidate anuleaza posibilitatea de a servi date stale
+        #must-revalidate anuleaza posibilitatea de a servi date stale
         if directives['must-revalidate']:
             directives['stale-while-revalidate'] = 0
             directives['stale-if-error'] = 0
 
         return directives
 
-    #REQ: Cheie base: host+port+path+query. Field separat pt Vary. Fara metoda.
+    #Logica de generare a cheii de identificare a resursei in bd: host+port+path+query. Field separat pt Vary
     def get_redis_keys(self, host, port, path, req_headers, resp_headers=None):
         base_key = f"cdn:{host}:{port}:{path}"
 
@@ -62,7 +62,7 @@ class CDNManager:
 
         return base_key, vary_signature
 
-    #REQ: Evaluare stocare (Auth, 206, no-store, private)
+    #Evaluare conditii de stocare (Auth, 206, no-store, private)
     def is_cacheable(self, method, req_headers, resp_status, resp_headers):
         if method not in ['GET', 'HEAD']:
             return False
@@ -86,7 +86,7 @@ class CDNManager:
 
         return True
 
-    #REQ: Freshness (s-maxage > max-age > Expires)
+    #Freshness (s-maxage > max-age > Expires)
     def calculate_freshness(self, cc_directives, resp_headers):
         if cc_directives['s-maxage'] is not None:
             return cc_directives['s-maxage']
@@ -103,14 +103,14 @@ class CDNManager:
                 print(f"[*E] [CDN] Eroare parsare Expires: {e}")
         return 0
 
-    #REQ: Salvare
+    #Stocare
     def store_response(self, host, port, path, req_headers, status, resp_headers, body):
         base_key, vary_sig = self.get_redis_keys(host, port, path, req_headers, resp_headers)
         cc = self.parse_cache_control(resp_headers.get('Cache-Control', ''))
         freshness_ttl = self.calculate_freshness(cc, resp_headers)
 
         safe_headers = {}
-        #REQ: Ignoram Connection si campurile specificate in no-cache
+        #Ignoram Connection si campurile specificate in no-cache
         for k, v in resp_headers.items():
             k_low = k.lower()
             if k_low == 'connection' or k_low in cc['no-cache-fields']:
@@ -128,7 +128,6 @@ class CDNManager:
             "global_no_cache": cc['global-no-cache']
         }
 
-        # Timeout fizic Redis = cat e fresh + maximul de timp de gratie (stale)
         max_stale = max(cc['stale-while-revalidate'], cc['stale-if-error'])
         redis_hard_ttl = freshness_ttl + max_stale
 
@@ -137,19 +136,19 @@ class CDNManager:
         self.r.expire(base_key, redis_hard_ttl)
         print(f"[*I] [CDN] Salvat {base_key} [Vary: {vary_sig} | TTL: {freshness_ttl}s]")
 
-    #REQ: Invalidate la actiuni POST/PUT/DELETE
+    #Invalidare la detectia metodelor unsafe (POST/PUT/DELETE) aplicate pe resursa
     def invalidate_mutations(self, method, host, port, path, status):
         if method in ['POST', 'PUT', 'DELETE', 'PATCH'] and 100 <= status < 400:
             base_key = f"cdn:{host}:{port}:{path}"
             if self.r.delete(base_key):
                 print(f"[*I] [CDN-INV] Invalidate reusit pt {base_key} dupa {method}.")
 
-    #REQ: Freshening (Revalidare la Origin: 304)
+    #Freshening (revalidare la origine)
     def freshen_cache(self, host, port, path, req_headers, cached_data, new_headers):
         base_key, vary_sig = self.get_redis_keys(host, port, path, req_headers)
         old_headers = cached_data.get('headers', {})
 
-        #REQ: Update headere si Cache Poisoning Check(anti modificari de content-....)
+        #Actualizare headere cu Cache Poisoning Check
         for k, v in new_headers.items():
             if k.lower().startswith('content-'):
                 print(f"[*W] [CDN-SEC] Ignorat header malitios/nesigur {k} la 304.")
@@ -175,9 +174,9 @@ class CDNManager:
         self.r.expire(base_key, redis_hard_ttl)
         print(f"[*I] [CDN-FRESH] Cache revalidat pt {base_key} [Vary: {vary_sig}]")
 
-    #REQ: Validare ceruta de client. Daca clientul are resursa (ETag/LMod), trimite 304 response code.
+    #Logica de validare a req clientului. Daca clientul are resursa (ETag/LMod), trimite 304 response code.
     def validate_client_request(self, client_headers, cached_data):
-        #Daca resursa noastra e invechita sau OriginServer a zis no-cache => nu putem garanta ca ce are clientul e corect, delegam revalidarea.
+        #Daca resursa noastra e invechita sau Origin Server a zis no-cache => nu putem garanta ca ce are clientul e corect, delegam revalidarea.
         age = time.time() - cached_data.get('stored_at', 0)
         if age >= cached_data.get('freshness_ttl', 0) or cached_data.get('global_no_cache'):
             return False

@@ -1,0 +1,15 @@
+server {
+    listen 9000;
+    server_name localhost;
+
+    location / {
+        root /usr/share/nginx/html;
+        index index.html;
+    }
+
+    location /api/ {
+        proxy_pass http://${MYCLOUD_API_HOST}:${MYCLOUD_API_PORT}/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}

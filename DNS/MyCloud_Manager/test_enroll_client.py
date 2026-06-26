@@ -13,6 +13,7 @@ timestamp = str(int(time.time()))
 message = f"{DOMAIN}:{ORIGIN_IP}:{timestamp}"
 signature = hmac.new(API_KEY.encode('utf-8'), message.encode('utf-8'), hashlib.sha256).hexdigest()
 
+
 encoded_ip = urllib.parse.quote(ORIGIN_IP)
 
 print("\n comanda pt register in platforma")
@@ -22,3 +23,6 @@ print(f'curl -X POST "{reg_url}"\n')
 print("\n comanda pt unregister in platforma")
 unreg_url = f"http://127.0.0.1:{PORT}/unregister?domain={DOMAIN}&original_ip={encoded_ip}&t={timestamp}&sig={signature}"
 print(f'curl -X POST "{unreg_url}"\n')
+
+print("TIMESTAMP: " + timestamp)
+print("SEMNATURA:\n"+signature)

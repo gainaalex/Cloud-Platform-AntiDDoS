@@ -13,37 +13,36 @@ import json
 
 from cdn_logic import CDNManager
 
-# parametrii WAF flood prevention
+#Parametrii WAF flood prevention
 WAF_FLOOD_WINDOW = int(os.getenv('WAF_FLOOD_WINDOW', 1))
 WAF_FLOOD_MAX_REQS = int(os.getenv('WAF_FLOOD_MAX_REQS', 50))
 WAF_BAN_TIMEOUT = int(os.getenv('WAF_BAN_TIMEOUT', 120))
 
 
-# waf e pe nivelul 7 in osi
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 GLOBAL_DNS_REDIS = os.getenv('GLOBAL_DNS_REDIS', 'redis_mycloud')
 
 redis_client = redis.Redis(host=REDIS_HOST, port=6379, decode_responses=True)
 
-#conexiunea cu bd ce contine adresele efective ale origin servers
+#conexiunea cu bd redis
 global_redis_client = redis.Redis(host=GLOBAL_DNS_REDIS, port=6379, decode_responses=True)
 
 cdn_manager = CDNManager(redis_client=redis_client)
 
-# in industrie sunt importate constant din owasp dar pentru o lucrare academica o sa ma limitez doar la o parte din atacuri si doar la
-# cateva moduri in care pot fi modelate de atacator
+#In industrie sunt importate (se foloseste tokenizarea) din owasp dar pentru o lucrare academica
+# o sa ma limitez doar la o parte din atacuri folosind regex
 ATTACK_SIGNATURES = {
     "SQL_INJECTION": re.compile(
         r"(?i)(union.*select|insert.*into|drop\s+table|waitfor\s+delay|sleep\s*\(|information_schema|' OR \d+=\d+|' OR '[a-z]'='[a-z]|--$)"),
     "XSS": re.compile(r"(?i)(<script>|javascript:|onerror=)"),
     "PATH_TRAVERSAL": re.compile(r"(?i)(\.\./|\.\.\\|/etc/passwd|\x00)"),#din RFC 3986 sectiunea 7
     "RESERVED_NAMES": re.compile(r"(?i)\b(AUX|PRN|CON|LPT[1-9]|COM[1-9])\b"),#din RFC 3986 sectiunea 7
-    "SENSITIVE_PORT_ACCESS": re.compile(r":([0-9]{1,3}|102[0-3])($|/|\?)"),#din RFC 3986 sectiunea 7,
+    "SENSITIVE_PORT_ACCESS": re.compile(r":([0-9]{1,3}|102[0-3])($|/|\?)"),#din RFC 3986 sectiunea 7
     "KNOWN_SCANNER": re.compile(r"(?i)(sqlmap|nikto|wpscan|dirbuster|nmap|zgrab|masscan|python-requests|go-http-client)")#CWE-20
 }
 
-
+#Logica incrementare contor si detectie atac volumetric
 def client_is_rate_limited(client_ip):
     if redis_client.get(f"ban:{client_ip}"):
         return True
@@ -75,10 +74,8 @@ def client_is_rate_limited(client_ip):
 
 
 def analyze_request(path, headers, body=""):
-    # normalizam=decodarea din percent-encode URL-ul
-    # vezi rfc 3986
+    #Normalizam cererea si corpul acesteia, conform RFC 3986
 
-    #print(f"!!!!!path: {path}",flush=True)
     decoded_path = urllib.parse.unquote_plus(path)
     decoded_body = urllib.parse.unquote_plus(body)
 
@@ -88,9 +85,9 @@ def analyze_request(path, headers, body=""):
         if pattern.search(full_payload):
             return False, attack_type
 
-    # verif user-agent header #vezi rfc 3986 si rfc 9110
+    #Verificam user-agent header conform RFC 3986 si RFC 9110
     user_agent = headers.get('User-Agent', '')
-    if not user_agent:#AICI E DE INTREBAT, STANDARDUL ZICE CA USER SHOULD SEND THIS (RFC 9110 S10.1.5)
+    if not user_agent:
         return False, "MISSING_USER_AGENT"
     print(f"User-agent:{user_agent}", flush=True)
     for attack_type, pattern in ATTACK_SIGNATURES.items():
@@ -109,7 +106,7 @@ class WAFNodeHandler(http.server.BaseHTTPRequestHandler):
 
         print(f"[*I] WAF a primit o cerere pt:{host_header}{self.path}", flush=True)
 
-        # 1) verificam posibil DDOS FLOOD
+        #Verificam posibil DDOS FLOOD
         if client_is_rate_limited(client_ip):
             print(f"[*W] [RATE-LIMIT] IP {client_ip} blocat (Flood detected)")
             self.send_response(429)
@@ -122,7 +119,7 @@ class WAFNodeHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(b"<h1>429 Too Many Requests</h1><p>DDoS protection detected suspicios number of requests from you</p>")
             return
 
-        # 2) WAF verifica continutul cererii
+        #Verificam continutul cererii pe baza semnaturilor atacurilor
         is_safe, threat_type = analyze_request(self.path, self.headers, body)
 
         if not is_safe:
@@ -156,8 +153,10 @@ class WAFNodeHandler(http.server.BaseHTTPRequestHandler):
         # self.wfile.write(success_html.encode('utf-8'))
         # --------------------------------------------------------------------------------------------------------------------------
 
-        #logica cu CDN
+        #logica cu CDN:
+
         origin_address=global_redis_client.get(f"origin:{host_header}")
+        #Cazul in care este accesat un domeniu inexistent (Prevenim Cache Poisoning)
         if not origin_address:
             print(f"[*E] [ROUTING] Domeniul cerut {host_header} nu e resolved in myCloud Network")
             self.send_error(502,f"Bad Gateway: Domeniul {host_header} nu e resolved in myCloud Network")
@@ -166,11 +165,12 @@ class WAFNodeHandler(http.server.BaseHTTPRequestHandler):
         base_key,vary_sig=cdn_manager.get_redis_keys(host_header,PORT,self.path,self.headers)
 
         cached_data_json=redis_client.hget(base_key,vary_sig)
-        #DACA Exista un match in BD
+
+        #Exista match in BD
         if cached_data_json:
             cached_data=json.loads(cached_data_json)
 
-            #aici verificam daca (bineinteles site ul suporta acest tip de validare prin ETag)
+            #Verificare daca (bineinteles site ul suporta) putem valida request-ul prin ETag
             if cdn_manager.validate_client_request(self.headers, cached_data):
                 self.send_response(304)
                 for k,v in cached_data.get('headers', {}).items():
@@ -208,7 +208,7 @@ class WAFNodeHandler(http.server.BaseHTTPRequestHandler):
                 print(f"[*I] [CDN-HIT] Resursa livrata din cache")
                 return
 
-        #DACA nu exista match in BD pentru corpul cererii
+        #Daca nu exista match in BD pentru corpul cererii
         print(f"[*I] [CDN-MISS] Interogam Origin server {origin_address}")
         origin_url=f"http://{origin_address}{self.path}"
 
@@ -221,7 +221,7 @@ class WAFNodeHandler(http.server.BaseHTTPRequestHandler):
 
             req_origin.add_header('X-Forwarded-For',client_ip)
 
-            #pt revalidare cu ETAG
+            #Cazul in care facem revalidare cu ETAG
             if cached_data_json:
                 cache_vechi = json.loads(cached_data_json)
                 etag_vechi = cache_vechi.get('headers', {}).get('ETag')
@@ -233,7 +233,7 @@ class WAFNodeHandler(http.server.BaseHTTPRequestHandler):
                 resp_status_code=response.getcode()
                 resp_headers_dict=dict(response.info().items())
 
-                #daca origin server returneaza cod 304, acctulizam ttl in cache
+                #Daca origin server returneaza cod 304, acctualizam ttl-ul resursei in cache
                 if resp_status_code==304 and cached_data_json:
                     cached_data=json.loads(cached_data_json)
                     cdn_manager.freshen_cache(host_header,PORT,self.path,self.headers,cached_data,resp_headers_dict)
@@ -255,10 +255,10 @@ class WAFNodeHandler(http.server.BaseHTTPRequestHandler):
                     self.wfile.write(cached_data.get('body','').encode('utf-8'))
                     return
 
-            # daca cererea e un post / delete facem invalidare de date
+            #Daca cererea e presupune o metoda http unsafe(post, put,delete), facem invalidare de date
             cdn_manager.invalidate_mutations(method,host_header,PORT,self.path,resp_status_code)
 
-            #daca resursa e cacheable, o stocam
+            #Daca resursa e cacheable, o stocam
             if cdn_manager.is_cacheable(method,self.headers,resp_status_code,resp_headers_dict):
                 cdn_manager.store_response(host_header,PORT,self.path,self.headers,resp_status_code,resp_headers_dict,resp_body_bytes.decode('utf-8',errors='ignore'))
 
@@ -287,7 +287,7 @@ class WAFNodeHandler(http.server.BaseHTTPRequestHandler):
 
 
     def do_GET(self):
-        # aici procesez cererile de health venite de la pop
+        #Logica de procesare a cererilor de health venite de la pop
         if self.path == '/health':
             self.send_response(200)
             self.send_header('Content-type', 'text/plain')
@@ -295,13 +295,13 @@ class WAFNodeHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(b"OK")
             return
 
+        #Logica de crash a servicilui de WAF, folosit in teste
         if self.path == '/crash':
             print(f"[*F] CRASH INDUS MANUAL pe {socket.gethostname()}! Container crashed",flush=True)
             #500 internal server err
             self.send_response(500)
             self.end_headers()
             self.wfile.write(b"Crash initiated")
-            #sys.exit(1) #nu merge pe multi thread nush dc
             os._exit(1)
 
         self.handle_waf_logic("GET")
@@ -327,7 +327,8 @@ def register_to_redis():
 
     while True:
         try:
-            # am pus ttl 10 secunde
+            #Am stabilit ca timpul optim(timp detectie avarie/nr de checkuri in fereastra de timp) in care
+            #un waf sa fie expus sa fie de 10 secunde
             redis_client.set(f"waf_node:{endpoint_url}", "online", ex=10)
         except Exception as e:
             print(f"[*E] Redis error: {e}")

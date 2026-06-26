@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROTLD - Registrul National de Domenii</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ROTLD Portal</h1>
+            <p>Inregistrare domenii TLD si alocare IP</p>
+        </header>
+
+        <div class="card">
+            <div class="input-group">
+                <label for="domain">Domeniul</label>
+                <input type="text" id="domain" placeholder="test.ro">
+            </div>
+
+            <div class="input-group">
+                <label for="ip">Adresa IP (Optional)</label>
+                <input type="text" id="ip" placeholder="Lasa liber pentru alocare IP dinamica">
+            </div>
+
+            <div class="buttons">
+                <button id="btn-buy" class="btn-success">Cumpara Domeniu</button>
+            </div>
+        </div>
+
+        <div class="terminal">
+            <div class="terminal-header">ROTLD Logs</div>
+            <div id="log-box"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
