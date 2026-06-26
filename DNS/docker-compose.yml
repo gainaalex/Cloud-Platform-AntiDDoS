@@ -158,13 +158,13 @@ services:
           - dns_network
 
   rotld_frontend:
-    build: ./MyCloud_Manager/rotldAPI_frontend
-    ports:
-      - "9001:9001"
-    environment:
-      - ROTLD_API_HOST=rotld_api
-      - ROTLD_API_PORT=8080
-    depends_on:
-      - rotld_api
-    networks:
-      - dns_network
+      build: ./MyCloud_Manager/rotldAPI_frontend
+      ports:
+        - "9001:9001"
+      environment:
+        - ROTLD_API_HOST=rotld_api
+        - ROTLD_API_PORT=8080
+      depends_on:
+        - rotld_api
+      networks:
+        - dns_network
